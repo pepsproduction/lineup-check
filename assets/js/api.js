@@ -106,6 +106,10 @@ const API = (() => {
       return _call({ action: 'me' });
     },
 
+    register(data) {
+      return _call({ action: 'register', ...data });
+    },
+
     /* ---------- Settings ---------- */
     getSettings() {
       return _call({ action: 'getSettings' });
@@ -186,6 +190,14 @@ const API = (() => {
 
     resetTeacherPassword(userId, newPassword) {
       return _call({ action: 'resetTeacherPassword', user_id: userId, new_password: newPassword });
+    },
+
+    updateUserStatus(userId, status) {
+      return _call({ action: 'updateUserStatus', user_id: userId, status });
+    },
+
+    deleteUser(userId) {
+      return _call({ action: 'deleteUser', user_id: userId });
     },
 
     /* ---------- Activity Logs ---------- */

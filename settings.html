@@ -228,17 +228,86 @@ async function loadTeachers() {
   }
 
   const roleLabel = { admin: 'ผู้ดูแล', teacher: 'ครู', assistant: 'ผู้ช่วย' };
-  container.innerHTML = res.data.map(t => `
-    <div class="list-item">
-      <div class="list-item-avatar">${escapeHtml(getInitials(t.full_name))}</div>
-      <div class="list-item-content">
-        <div class="list-item-title">${escapeHtml(t.full_name)}</div>
-        <div class="list-item-subtitle">${escapeHtml(t.username)} · ${escapeHtml(roleLabel[t.role] || t.role)}</div>
+  container.innerHTML = res.data.map(t => {
+    let badgeClass = 'badge-teacher';
+    let statusText = roleLabel[t.role] || t.role;
+    
+    if (t.status === 'pending') {
+      badgeClass = 'badge-pending';
+      statusText = 'รออนุมัติ';
+    } else if (t.status === 'suspended') {
+      badgeClass = 'badge-absent';
+      statusText = 'ระงับ';
+    } else if (t.role === 'admin') {
+      badgeClass = 'badge-admin';
+    } else if (t.role === 'assistant') {
+      badgeClass = 'badge-leave';
+    }
+
+    const isSelf = t.user_id === _settingsUser.user_id;
+
+    return `
+    <div class="list-item" style="flex-direction: column; align-items: stretch; gap: 8px;">
+      <div style="display: flex; align-items: center; gap: 12px; width: 100%;">
+        <div class="list-item-avatar">${escapeHtml(getInitials(t.full_name))}</div>
+        <div class="list-item-content">
+          <div class="list-item-title">${escapeHtml(t.full_name)} ${isSelf ? '<span style="font-size:12px;color:var(--text-secondary)">(คุณ)</span>' : ''}</div>
+          <div class="list-item-subtitle">${escapeHtml(t.username)} · ${escapeHtml(roleLabel[t.role] || t.role)}</div>
+        </div>
+        <div class="list-item-action">
+          <span class="badge ${badgeClass}">${escapeHtml(statusText)}</span>
+        </div>
       </div>
-      <div class="list-item-action">
-        <span class="badge ${t.role === 'admin' ? 'badge-admin' : 'badge-teacher'}">${escapeHtml(roleLabel[t.role] || t.role)}</span>
-      </div>
-    </div>`).join('');
+      
+      ${!isSelf ? `
+        <div style="display: flex; gap: 8px; justify-content: flex-end; width: 100%; border-top: 1px dashed var(--border-color); padding-top: 8px; margin-top: 4px;">
+          ${t.status === 'pending' ? `
+            <button class="btn btn-sm btn-success" onclick="updateUserStatus('${t.user_id}', 'active')">✅ อนุมัติ</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser('${t.user_id}', true)">❌ ปฏิเสธ</button>
+          ` : t.status === 'suspended' ? `
+            <button class="btn btn-sm btn-primary" onclick="updateUserStatus('${t.user_id}', 'active')">▶️ เปิดใช้งาน</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser('${t.user_id}')">🗑️ ลบ</button>
+          ` : `
+            <button class="btn btn-sm btn-secondary" onclick="updateUserStatus('${t.user_id}', 'suspended')">⏸️ ระงับ</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteUser('${t.user_id}')">🗑️ ลบ</button>
+          `}
+        </div>
+      ` : ''}
+    </div>`;
+  }).join('');
+}
+
+async function updateUserStatus(userId, status) {
+  const statusLabel = { active: 'เปิดใช้งาน', suspended: 'ระงับการใช้งาน' };
+  showLoading('กำลังทำรายการ...');
+  const res = await API.updateUserStatus(userId, status);
+  hideLoading();
+  
+  if (res.ok) {
+    showToast(`${statusLabel[status] || 'อัปเดต'}สำเร็จ`, 'success');
+    loadTeachers();
+  } else {
+    showToast(res.message || 'ทำรายการไม่สำเร็จ', 'error');
+  }
+}
+
+async function deleteUser(userId, isReject = false) {
+  const confirmMsg = isReject 
+    ? 'คุณต้องการปฏิเสธคำขอสมัครสมาชิกและลบผู้ใช้นี้ใช่หรือไม่?' 
+    : 'คุณต้องการลบผู้ใช้นี้ออกจากระบบอย่างถาวรใช่หรือไม่?';
+    
+  if (!confirm(confirmMsg)) return;
+  
+  showLoading('กำลังลบ...');
+  const res = await API.deleteUser(userId);
+  hideLoading();
+  
+  if (res.ok) {
+    showToast(isReject ? 'ปฏิเสธคำขอสำเร็จ' : 'ลบผู้ใช้สำเร็จ', 'success');
+    loadTeachers();
+  } else {
+    showToast(res.message || 'ลบไม่สำเร็จ', 'error');
+  }
 }
 
 function openAddTeacher() {

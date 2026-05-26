@@ -62,6 +62,7 @@ function doPost(e) {
     if (action === 'ping')       return handlePing();
     if (action === 'setupInit')  return handleSetupInit();
     if (action === 'login')      return handleLogin(payload);
+    if (action === 'register')   return handleRegister(payload);
 
     // ─── Protected actions (require valid session) ───
     const session = validateSession(payload.session_token);
@@ -109,6 +110,8 @@ function doPost(e) {
       case 'listTeachers':          return handleListTeachers(user);
       case 'createTeacher':         return handleCreateTeacher(user, payload);
       case 'resetTeacherPassword':  return handleResetTeacherPassword(user, payload);
+      case 'updateUserStatus':      return handleUpdateUserStatus(user, payload);
+      case 'deleteUser':            return handleDeleteUser(user, payload);
 
       // Logs
       case 'logActivity':           return handleLogActivity(user, payload);
@@ -325,7 +328,8 @@ function handleLogin(payload) {
   const user  = users.find(u => u.username === username);
 
   if (!user) return err('INVALID_CREDENTIALS', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
-  if (user.status !== 'active') return err('USER_INACTIVE', 'บัญชีผู้ใช้ถูกระงับ');
+  if (user.status === 'pending') return err('USER_PENDING', 'บัญชีผู้ใช้ของคุณอยู่ระหว่างการรออนุมัติจากผู้ดูแลระบบ');
+  if (user.status !== 'active') return err('USER_INACTIVE', 'บัญชีผู้ใช้ของคุณถูกระงับการใช้งาน');
 
   if (!verifyPassword(password, user.password_hash, user.password_salt)) {
     return err('INVALID_CREDENTIALS', 'ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง');
@@ -942,6 +946,95 @@ function handleResetTeacherPassword(user, payload) {
 
   logActivity_(user.user_id, 'resetPassword', 'user', user_id, '');
   return ok(null, 'รีเซ็ตรหัสผ่านสำเร็จ');
+}
+
+function handleRegister(payload) {
+  const { full_name, username, password, role } = payload;
+  if (!full_name || !username || !password) {
+    return err('MISSING_FIELDS', 'กรุณากรอกข้อมูลให้ครบถ้วน');
+  }
+  if (password.length < 6) {
+    return err('WEAK_PASSWORD', 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+  }
+
+  const validRoles = ['teacher', 'assistant'];
+  if (!validRoles.includes(role)) {
+    return err('INVALID_ROLE', 'บทบาทไม่ถูกต้อง');
+  }
+
+  const sheet = getSheet(SHEETS.USERS);
+  if (!sheet) {
+    return err('SETUP_REQUIRED', 'ระบบยังไม่ได้ถูกติดตั้ง');
+  }
+
+  const users = sheetToObjects(sheet);
+  const existing = users.find(u => u.username === username);
+  if (existing) {
+    return err('DUPLICATE_USERNAME', 'ชื่อผู้ใช้นี้ถูกใช้งานแล้ว');
+  }
+
+  const salt     = generateSalt();
+  const hash     = hashPassword(password, salt);
+  const userId   = generateId('U');
+  const headers  = ['user_id','full_name','username','password_hash','password_salt','role','status','created_at','last_login'];
+
+  appendRow(sheet, {
+    user_id:       userId,
+    full_name,
+    username,
+    password_hash: hash,
+    password_salt: salt,
+    role:          role,
+    status:        'pending',
+    created_at:    new Date().toISOString(),
+    last_login:    '',
+  }, headers);
+
+  logActivity_(userId, 'register', 'user', userId, `ลงทะเบียนในบทบาท ${role}`);
+  return ok(null, 'ลงทะเบียนสำเร็จ! กรุณารอผู้ดูแลระบบอนุมัติใช้งาน');
+}
+
+function handleUpdateUserStatus(currentUser, payload) {
+  if (currentUser.role !== 'admin') return err('FORBIDDEN', 'ไม่มีสิทธิ์ทำรายการนี้');
+
+  const { user_id, status } = payload;
+  if (!user_id || !status) return err('MISSING_FIELDS', 'ข้อมูลไม่ครบถ้วน');
+
+  const validStatuses = ['active', 'suspended', 'pending'];
+  if (!validStatuses.includes(status)) return err('INVALID_STATUS', 'สถานะไม่ถูกต้อง');
+
+  const sheet = getSheet(SHEETS.USERS);
+  const rowIdx = findRowIndex(sheet, 'user_id', user_id);
+  if (rowIdx < 0) return err('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
+
+  if (user_id === currentUser.user_id) {
+    return err('FORBIDDEN', 'ไม่สามารถแก้ไขสถานะของตัวเองได้');
+  }
+
+  updateRowFields(sheet, rowIdx, { status: status });
+
+  logActivity_(currentUser.user_id, 'updateUserStatus', 'user', user_id, status);
+  return ok(null, 'อัปเดตสถานะสำเร็จ');
+}
+
+function handleDeleteUser(currentUser, payload) {
+  if (currentUser.role !== 'admin') return err('FORBIDDEN', 'ไม่มีสิทธิ์ทำรายการนี้');
+
+  const { user_id } = payload;
+  if (!user_id) return err('MISSING_FIELDS', 'ข้อมูลไม่ครบถ้วน');
+
+  if (user_id === currentUser.user_id) {
+    return err('FORBIDDEN', 'ไม่สามารถลบตัวเองได้');
+  }
+
+  const sheet = getSheet(SHEETS.USERS);
+  const rowIdx = findRowIndex(sheet, 'user_id', user_id);
+  if (rowIdx < 0) return err('NOT_FOUND', 'ไม่พบผู้ใช้ที่ระบุ');
+
+  sheet.deleteRow(rowIdx);
+
+  logActivity_(currentUser.user_id, 'deleteUser', 'user', user_id, '');
+  return ok(null, 'ลบผู้ใช้สำเร็จ');
 }
 
 // ============================================================

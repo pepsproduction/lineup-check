@@ -72,8 +72,8 @@
 <div class="login-wrapper">
   <div class="login-card">
     <div class="login-logo">📋</div>
-    <h1 class="login-title">LineUp Check</h1>
-    <p class="login-subtitle">ระบบเช็คชื่อนักเรียน</p>
+    <h1 class="login-title" id="login-title">LineUp Check</h1>
+    <p class="login-subtitle" id="login-subtitle">ระบบเช็คชื่อนักเรียน</p>
 
     <div id="expired-alert" class="alert alert-warning hidden">
       <span class="alert-icon">⚠️</span>
@@ -124,6 +124,63 @@
       <button type="submit" id="btn-login" class="btn btn-primary btn-block btn-lg">
         เข้าสู่ระบบ
       </button>
+
+      <div style="text-align:center;margin-top:20px;font-size:14px">
+        ยังไม่มีบัญชีครู/ผู้ช่วย? <a href="#" id="link-show-register" style="color:var(--brand-primary);font-weight:700">สมัครใช้งานที่นี่</a>
+      </div>
+    </form>
+
+    <form id="register-form" class="hidden" novalidate>
+      <div class="form-group">
+        <label class="form-label required" for="reg-fullname">ชื่อ-นามสกุล</label>
+        <input type="text" id="reg-fullname" class="form-control"
+               placeholder="กรอกชื่อและนามสกุลจริง"
+               required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required" for="reg-username">ชื่อผู้ใช้</label>
+        <input type="text" id="reg-username" class="form-control"
+               placeholder="กรอกชื่อผู้ใช้สำหรับเข้าระบบ"
+               autocomplete="username"
+               required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required" for="reg-password">รหัสผ่าน</label>
+        <div class="password-wrapper">
+          <input type="password" id="reg-password" class="form-control"
+                 placeholder="รหัสผ่านอย่างน้อย 6 ตัวอักษร"
+                 autocomplete="new-password"
+                 required>
+          <button type="button" class="show-password-btn" id="toggle-reg-password" aria-label="แสดง/ซ่อนรหัสผ่าน">
+            👁️
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required" for="reg-role">บทบาท</label>
+        <select id="reg-role" class="form-control" required>
+          <option value="teacher">ครู (teacher)</option>
+          <option value="assistant">ผู้ช่วย (assistant)</option>
+        </select>
+      </div>
+
+      <div id="register-error" class="alert alert-error hidden" role="alert">
+        <span class="alert-icon">❌</span>
+        <div class="alert-content">
+          <div class="alert-text" id="register-error-text"></div>
+        </div>
+      </div>
+
+      <button type="submit" id="btn-register" class="btn btn-primary btn-block btn-lg">
+        สมัครสมาชิก
+      </button>
+
+      <div style="text-align:center;margin-top:20px;font-size:14px">
+        มีบัญชีอยู่แล้ว? <a href="#" id="link-show-login" style="color:var(--brand-primary);font-weight:700">เข้าสู่ระบบ</a>
+      </div>
     </form>
   </div>
 
@@ -163,6 +220,35 @@ document.addEventListener('DOMContentLoaded', () => {
     pw.type = pw.type === 'password' ? 'text' : 'password';
   });
 
+  // Toggle forms
+  const showRegisterLink = $id('link-show-register');
+  const showLoginLink = $id('link-show-login');
+  const loginForm = $id('login-form');
+  const registerForm = $id('register-form');
+  const cardSubtitle = $id('login-subtitle');
+
+  showRegisterLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    hideEl('login-form');
+    showEl('register-form');
+    hideEl('login-error');
+    cardSubtitle.textContent = 'ลงทะเบียนบัญชีใหม่';
+  });
+
+  showLoginLink.addEventListener('click', (e) => {
+    e.preventDefault();
+    hideEl('register-form');
+    showEl('login-form');
+    hideEl('register-error');
+    cardSubtitle.textContent = 'ระบบเช็คชื่อนักเรียน';
+  });
+
+  // Toggle register password visibility
+  $id('toggle-reg-password').addEventListener('click', () => {
+    const pw = $id('reg-password');
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+  });
+
   // Login form submit
   $id('login-form').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -190,6 +276,50 @@ document.addEventListener('DOMContentLoaded', () => {
       btn.textContent = 'เข้าสู่ระบบ';
     }
   });
+
+  // Register form submit
+  registerForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $id('btn-register');
+    const fullname = $id('reg-fullname').value.trim();
+    const username = $id('reg-username').value.trim();
+    const password = $id('reg-password').value;
+    const role = $id('reg-role').value;
+
+    if (!fullname || !username || !password || !role) {
+      showRegisterError('กรุณากรอกข้อมูลให้ครบถ้วน');
+      return;
+    }
+
+    if (password.length < 6) {
+      showRegisterError('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'กำลังลงทะเบียน...';
+    hideEl('register-error');
+
+    const result = await API.register({ full_name: fullname, username, password, role });
+
+    if (result.ok) {
+      showToast('ลงทะเบียนสำเร็จ! กรุณารอผู้ดูแลระบบอนุมัติใช้งาน', 'success');
+      // Reset register form
+      registerForm.reset();
+      // Switch back to login form
+      hideEl('register-form');
+      showEl('login-form');
+      cardSubtitle.textContent = 'ระบบเช็คชื่อนักเรียน';
+      // Put username into login field
+      $id('username').value = username;
+      $id('password').value = '';
+      $id('password').focus();
+    } else {
+      showRegisterError(result.message || 'ลงทะเบียนไม่สำเร็จ');
+    }
+    btn.disabled = false;
+    btn.textContent = 'สมัครสมาชิก';
+  });
 });
 
 function showLoginError(msg) {
@@ -197,6 +327,13 @@ function showLoginError(msg) {
   showEl('login-error');
   $id('password').value = '';
   $id('password').focus();
+}
+
+function showRegisterError(msg) {
+  $id('register-error-text').textContent = msg;
+  showEl('register-error');
+  $id('reg-password').value = '';
+  $id('reg-password').focus();
 }
 </script>
 </body>
