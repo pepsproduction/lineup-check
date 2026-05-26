@@ -99,6 +99,7 @@ function doPost(e) {
       // Attendance
       case 'scanAttendance':        return handleScanAttendance(user, payload);
       case 'updateAttendanceStatus': return handleUpdateAttendanceStatus(user, payload);
+      case 'markPendingAsAbsent':   return handleMarkClassPendingAsAbsent(user, payload);
 
       // Reports
       case 'getTodaySummary':       return handleGetTodaySummary(user, payload);
@@ -754,26 +755,103 @@ function handleScanAttendance(user, payload) {
 }
 
 function handleUpdateAttendanceStatus(user, payload) {
-  const { attendance_id, status, note } = payload;
-  if (!attendance_id || !status) return err('MISSING_FIELDS', 'ข้อมูลไม่ครบ');
+  const { attendance_id, student_id, class_id, date, status, note } = payload;
+  if (!status) return err('MISSING_FIELDS', 'ไม่ระบุสถานะ');
 
   const validStatuses = ['present', 'late', 'leave', 'absent', 'pending'];
   if (!validStatuses.includes(status)) return err('INVALID_STATUS', 'สถานะไม่ถูกต้อง');
 
-  const sheet = getSheet(SHEETS.ATTENDANCE);
-  if (!sheet) return err('NOT_FOUND', 'ไม่พบ Attendance sheet');
+  const sheet = getOrCreateSheet(SHEETS.ATTENDANCE, [
+    'attendance_id','date','class_id','student_id','status','scan_time','checked_by_user_id','method','note','created_at'
+  ]);
+  
+  let rowIdx = -1;
+  let targetId = attendance_id;
 
-  const rowIdx = findRowIndex(sheet, 'attendance_id', attendance_id);
-  if (rowIdx < 0) return err('NOT_FOUND', 'ไม่พบรายการนี้');
+  if (targetId) {
+    rowIdx = findRowIndex(sheet, 'attendance_id', targetId);
+  } else if (student_id && class_id && date) {
+    const rows = sheetToObjects(sheet);
+    const match = rows.find(r => r.student_id === student_id && r.class_id === class_id && r.date === date);
+    if (match) {
+      targetId = match.attendance_id;
+      rowIdx = findRowIndex(sheet, 'attendance_id', targetId);
+    }
+  }
 
-  updateRowFields(sheet, rowIdx, {
-    status: status,
-    note:   note || '',
-    checked_by_user_id: user.user_id,
+  const now = new Date();
+  
+  if (rowIdx > 0) {
+    updateRowFields(sheet, rowIdx, {
+      status: status,
+      note:   note !== undefined ? note : '',
+      checked_by_user_id: user.user_id,
+    });
+    logActivity_(user.user_id, 'updateStatus', 'attendance', targetId, status);
+  } else {
+    if (!student_id || !class_id || !date) {
+      return err('MISSING_FIELDS', 'ข้อมูลไม่เพียงพอในการสร้างรายการใหม่');
+    }
+    const newId = generateId('ATT');
+    const headers = ['attendance_id','date','class_id','student_id','status','scan_time','checked_by_user_id','method','note','created_at'];
+    appendRow(sheet, {
+      attendance_id:      newId,
+      date:               date,
+      class_id:           class_id,
+      student_id:         student_id,
+      status:             status,
+      scan_time:          '',
+      checked_by_user_id: user.user_id,
+      method:             'manual',
+      note:               note || '',
+      created_at:         now.toISOString(),
+    }, headers);
+    targetId = newId;
+    logActivity_(user.user_id, 'createManualStatus', 'attendance', newId, status);
+  }
+
+  return ok({ attendance_id: targetId, status: status }, 'อัปเดตสถานะเช็คชื่อสำเร็จ');
+}
+
+function handleMarkClassPendingAsAbsent(user, payload) {
+  const { class_id, date } = payload;
+  if (!class_id || !date) return err('MISSING_FIELDS', 'ข้อมูลไม่ครบ');
+
+  const studSheet = getSheet(SHEETS.STUDENTS);
+  const attSheet  = getOrCreateSheet(SHEETS.ATTENDANCE, [
+    'attendance_id','date','class_id','student_id','status','scan_time','checked_by_user_id','method','note','created_at'
+  ]);
+
+  const students = sheetToObjects(studSheet).filter(s => s.class_id === class_id && s.active !== '0');
+  const attendance = sheetToObjects(attSheet).filter(a => a.class_id === class_id && a.date === date);
+  const attMap = {};
+  attendance.forEach(a => { attMap[a.student_id] = a; });
+
+  const headers = ['attendance_id','date','class_id','student_id','status','scan_time','checked_by_user_id','method','note','created_at'];
+  let markedCount = 0;
+  const nowStr = new Date().toISOString();
+
+  students.forEach(s => {
+    if (!attMap[s.student_id]) {
+      const attId = generateId('ATT');
+      appendRow(attSheet, {
+        attendance_id:      attId,
+        date:               date,
+        class_id:           class_id,
+        student_id:         s.student_id,
+        status:             'absent',
+        scan_time:          '',
+        checked_by_user_id: user.user_id,
+        method:             'manual_batch',
+        note:               '',
+        created_at:         nowStr,
+      }, headers);
+      markedCount++;
+    }
   });
 
-  logActivity_(user.user_id, 'updateStatus', 'attendance', attendance_id, status);
-  return ok(null, 'อัปเดตสถานะสำเร็จ');
+  logActivity_(user.user_id, 'markPendingAsAbsent', 'class', class_id, `Marked ${markedCount} students as absent`);
+  return ok({ marked_count: markedCount }, `เช็คขาดจำนวน ${markedCount} คนสำเร็จ`);
 }
 
 // ============================================================

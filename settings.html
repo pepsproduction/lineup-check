@@ -83,6 +83,18 @@
         <button class="btn btn-primary" style="flex:1" onclick="saveApiUrl()">💾 บันทึก URL</button>
       </div>
       <div id="api-test-result" class="hidden mt-md"></div>
+      
+      <!-- Mobile Connection Sharing QR -->
+      <div id="mobile-qr-section" style="display:none;text-align:center;margin-top:16px;padding-top:16px;border-top:1px solid var(--border-color)">
+        <div style="font-weight:700;margin-bottom:8px;font-size:14px">📲 สแกนเพื่อใช้งานบนมือถือ</div>
+        <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+          ใช้กล้องมือถือสแกนคิวอาร์โค้ดนี้ เพื่อเข้าใช้งานเว็บและเชื่อมต่อฐานข้อมูลโดยอัตโนมัติ
+        </div>
+        <div id="mobile-qr-container" style="display:flex;justify-content:center;margin-bottom:8px">
+          <div class="spinner spinner-sm"></div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="copyConnectionLink()">📋 คัดลอกลิงก์เชื่อมต่อ</button>
+      </div>
     </div>
 
     <!-- App Info -->
@@ -178,7 +190,13 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (avatar) avatar.textContent = getInitials(_settingsUser.full_name || _settingsUser.username);
 
   // Load API URL
-  $id('setting-api-url').value = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '');
+  const savedApiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '');
+  $id('setting-api-url').value = savedApiUrl;
+
+  if (savedApiUrl) {
+    showEl('mobile-qr-section');
+    renderMobileQr(savedApiUrl);
+  }
 
   if (Auth.canManageSystem(_settingsUser)) {
     showEl('admin-settings');
@@ -365,6 +383,27 @@ function saveApiUrl() {
   if (!url) return;
   lsSet(APP_CONFIG.STORAGE_KEYS.API_URL, url);
   showToast('บันทึก URL สำเร็จ', 'success');
+  showEl('mobile-qr-section');
+  renderMobileQr(url);
+}
+
+function renderMobileQr(apiUrl) {
+  const container = $id('mobile-qr-container');
+  if (!apiUrl || !container) return;
+
+  const base = window.location.origin + window.location.pathname.replace('settings.html', 'login.html');
+  const connectUrl = `${base}?api_url=${encodeURIComponent(apiUrl)}`;
+  
+  container.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${encodeURIComponent(connectUrl)}" alt="Mobile Connect QR" style="border: 4px solid white; border-radius: 8px; box-shadow: var(--shadow); max-width: 180px;">`;
+}
+
+function copyConnectionLink() {
+  const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '');
+  if (!apiUrl) return;
+  const base = window.location.origin + window.location.pathname.replace('settings.html', 'login.html');
+  const connectUrl = `${base}?api_url=${encodeURIComponent(apiUrl)}`;
+  navigator.clipboard.writeText(connectUrl);
+  showToast('คัดลอกลิงก์เชื่อมต่อแล้ว', 'success');
 }
 </script>
 </body>

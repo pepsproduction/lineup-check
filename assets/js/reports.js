@@ -136,17 +136,91 @@ function renderDailyReport(data, date) {
                 ${s.note ? ` · ${escapeHtml(s.note)}` : ''}
               </div>
             </div>
-            <div class="list-item-action">${statusBadgeHtml(s.status || 'pending')}</div>
+            <div class="list-item-action" onclick="changeStudentStatus('${s.student_id}', '${s.attendance_id || ''}', '${s.status}', '${escapeHtml(s.first_name)} ${escapeHtml(s.last_name)}')" style="cursor:pointer" title="คลิกเพื่อแก้ไขสถานะ">
+              ${statusBadgeHtml(s.status || 'pending')}
+            </div>
           </div>`).join('')
       }
     </div>
 
-    <div class="mt-md">
-      <button class="btn btn-primary btn-block" onclick="exportExcel()">
+    <div style="display:flex;gap:12px;margin-top:16px">
+      ${summary.pending > 0 ? `
+        <button class="btn btn-danger" style="flex:1" onclick="markAllPendingAsAbsent('${escapeHtml(classId)}', '${escapeHtml(date)}')">
+          ❌ เช็คขาดทั้งหมด (${summary.pending})
+        </button>
+      ` : ''}
+      <button class="btn btn-primary" style="flex:${summary.pending > 0 ? '1' : '2'}" onclick="exportExcel()">
         📥 Export Excel
       </button>
     </div>
   `;
+}
+
+async function markAllPendingAsAbsent(classId, date) {
+  if (!confirm('คุณต้องการเช็คชื่อเป็น "ขาด" ให้กับนักเรียนทั้งหมดที่ยังไม่ได้สแกนชื่อในวันนี้ใช่หรือไม่?')) return;
+  
+  showLoading('กำลังเช็คขาด...');
+  const res = await API.markPendingAsAbsent(classId, date);
+  hideLoading();
+  
+  if (res.ok) {
+    showToast(res.message || 'บันทึกสำเร็จ', 'success');
+    API.clearCache('students');
+    loadDailyReport(classId);
+  } else {
+    showToast(res.message || 'เกิดข้อผิดพลาด', 'error');
+  }
+}
+
+async function changeStudentStatus(studentId, attendanceId, currentStatus, studentName) {
+  const classId = $id('report-class').value;
+  const date = $id('report-date').value || today();
+  
+  const statuses = [
+    { value: 'present', label: 'มา (present)' },
+    { value: 'late', label: 'สาย (late)' },
+    { value: 'leave', label: 'ลา (leave)' },
+    { value: 'absent', label: 'ขาด (absent)' },
+    { value: 'pending', label: 'ยังไม่เช็ค (pending)' }
+  ];
+  
+  const optionsText = statuses.map((s, idx) => `${idx + 1}. ${s.label}`).join('\n');
+  const choice = prompt(`แก้ไขสถานะการเช็คชื่อของ ${studentName}:\n\n${optionsText}\n\nกรอกตัวเลข 1-5 ที่ต้องการ:`, '1');
+  
+  if (choice === null) return;
+  
+  const idx = parseInt(choice) - 1;
+  if (isNaN(idx) || idx < 0 || idx >= statuses.length) {
+    showToast('กรอกตัวเลขไม่ถูกต้อง', 'warning');
+    return;
+  }
+  
+  const newStatus = statuses[idx].value;
+  if (newStatus === currentStatus) return;
+
+  let note = '';
+  if (newStatus === 'leave') {
+    note = prompt('ระบุเหตุผลการลา (เช่น ป่วย, ลากิจ) หรือเว้นว่างไว้:', '') || '';
+  }
+  
+  showLoading('กำลังบันทึก...');
+  const res = await API.updateAttendanceStatus({
+    attendance_id: attendanceId || '',
+    student_id: studentId,
+    class_id: classId,
+    date: date,
+    status: newStatus,
+    note: note
+  });
+  hideLoading();
+  
+  if (res.ok) {
+    showToast('แก้ไขสถานะสำเร็จ', 'success');
+    API.clearCache('students');
+    loadDailyReport(classId);
+  } else {
+    showToast(res.message || 'เกิดข้อผิดพลาด', 'error');
+  }
 }
 
 async function loadMonthlyReport(classId) {

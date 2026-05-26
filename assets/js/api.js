@@ -26,26 +26,45 @@ const API = (() => {
    * @param {string} [overrideUrl] — optional URL override (for setup test)
    * @returns {Promise<{ok:boolean, data:any, message:string, error:string}>}
    */
-  async function _call(payload, overrideUrl = null) {
-    const url = overrideUrl || _getApiUrl();
+  /* ---------- Cache Manager ---------- */
+  const Cache = (() => {
+    let _store = {};
 
-    if (!url) {
-      return { ok: false, error: 'NO_API_URL', message: 'ยังไม่ได้ตั้งค่า URL ของ Apps Script กรุณาไปที่หน้าตั้งค่าก่อน' };
-    }
+    return {
+      get(key) {
+        const item = _store[key];
+        if (!item) return null;
+        if (Date.now() > item.expiry) {
+          delete _store[key];
+          return null;
+        }
+        return item.data;
+      },
+      set(key, data, ttlMs = 120000) { // TTL: 2 minutes for faster subsequent loads
+        _store[key] = {
+          data,
+          expiry: Date.now() + ttlMs
+        };
+      },
+      clear(prefix) {
+        if (!prefix) {
+          _store = {};
+        } else {
+          Object.keys(_store).forEach(k => {
+            if (k.startsWith(prefix)) delete _store[k];
+          });
+        }
+      }
+    };
+  })();
 
-    // Attach session token to every request
-    const token = _getSessionToken();
-    if (token && !payload.session_token) {
-      payload.session_token = token;
-    }
-
+  async function _executeFetch(payload, url) {
     try {
       const response = await fetch(url, {
         method: 'POST',
         // Use text/plain to avoid CORS preflight (no custom headers)
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload),
-        // No credentials — Apps Script handles auth via session_token
       });
 
       if (!response.ok) {
@@ -77,6 +96,62 @@ const API = (() => {
         message: 'เชื่อมต่อ API ไม่ได้ — กรุณาตรวจสอบอินเทอร์เน็ต'
       };
     }
+  }
+
+  /**
+   * Core fetch wrapper with caching support.
+   */
+  async function _call(payload, overrideUrl = null) {
+    const url = overrideUrl || _getApiUrl();
+
+    if (!url) {
+      return { ok: false, error: 'NO_API_URL', message: 'ยังไม่ได้ตั้งค่า URL ของ Apps Script กรุณาไปที่หน้าตั้งค่าก่อน' };
+    }
+
+    // Attach session token to every request
+    const token = _getSessionToken();
+    if (token && !payload.session_token) {
+      payload.session_token = token;
+    }
+
+    const action = payload.action;
+
+    // 1. Determine Cache Key
+    let cacheKey = null;
+    if (!overrideUrl) {
+      if (action === 'listClasses') cacheKey = 'classes';
+      else if (action === 'getSettings') cacheKey = 'settings';
+      else if (action === 'listStudents') cacheKey = `students_${payload.class_id || ''}_${payload.search || ''}`;
+    }
+
+    // 2. Return Cache if available
+    if (cacheKey) {
+      const cached = Cache.get(cacheKey);
+      if (cached) return cached;
+    }
+
+    // 3. Execute request
+    const result = await _executeFetch(payload, url);
+
+    // 4. Save Cache if successful
+    if (result.ok && cacheKey) {
+      Cache.set(cacheKey, result);
+    }
+
+    // 5. Invalidate Cache on modifying actions
+    if (result.ok) {
+      if (action === 'createClass' || action === 'updateClass') {
+        Cache.clear('classes');
+      } else if (action === 'createStudent' || action === 'updateStudent' || action === 'importStudents') {
+        Cache.clear('students');
+      } else if (action === 'updateSettings') {
+        Cache.clear('settings');
+      } else if (action === 'logout') {
+        Cache.clear();
+      }
+    }
+
+    return result;
   }
 
   /* ============================================================
@@ -158,8 +233,11 @@ const API = (() => {
       return _call({ action: 'scanAttendance', qr_token: qrToken, class_id: classId, date: date || today() });
     },
 
-    updateAttendanceStatus(attendanceId, status, note) {
-      return _call({ action: 'updateAttendanceStatus', attendance_id: attendanceId, status, note });
+    updateAttendanceStatus(attendanceIdOrData, status, note) {
+      if (typeof attendanceIdOrData === 'object') {
+        return _call({ action: 'updateAttendanceStatus', ...attendanceIdOrData });
+      }
+      return _call({ action: 'updateAttendanceStatus', attendance_id: attendanceIdOrData, status, note });
     },
 
     /* ---------- Reports ---------- */
@@ -198,6 +276,14 @@ const API = (() => {
 
     deleteUser(userId) {
       return _call({ action: 'deleteUser', user_id: userId });
+    },
+
+    markPendingAsAbsent(classId, date) {
+      return _call({ action: 'markPendingAsAbsent', class_id: classId, date });
+    },
+
+    clearCache(prefix) {
+      Cache.clear(prefix);
     },
 
     /* ---------- Activity Logs ---------- */

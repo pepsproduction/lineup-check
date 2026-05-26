@@ -197,6 +197,15 @@
 <script src="assets/js/auth.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', () => {
+  // Check if API URL is provided in query params (e.g. from mobile QR connect)
+  const params = new URLSearchParams(location.search);
+  const apiUrlParam = params.get('api_url');
+  if (apiUrlParam) {
+    lsSet(APP_CONFIG.STORAGE_KEYS.API_URL, apiUrlParam);
+    // Clean up query param from address bar
+    history.replaceState(null, '', location.pathname);
+  }
+
   // Already logged in?
   if (Auth.isLoggedIn() && lsGet(APP_CONFIG.STORAGE_KEYS.API_URL)) {
     window.location.href = 'dashboard.html';
@@ -206,10 +215,11 @@ document.addEventListener('DOMContentLoaded', () => {
   // No API URL?
   if (!lsGet(APP_CONFIG.STORAGE_KEYS.API_URL)) {
     showEl('no-url-alert');
+  } else {
+    hideEl('no-url-alert');
   }
 
   // Session expired message
-  const params = new URLSearchParams(location.search);
   if (params.get('reason') === 'expired') {
     showEl('expired-alert');
   }
