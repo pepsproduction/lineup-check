@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>สแกน QR — LineUp Check</title>
+  <meta name="description" content="สแกน QR Code เช็คชื่อนักเรียน">
+  <meta name="theme-color" content="#000000">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+</head>
+<body>
+<!-- Full-screen scanner layout -->
+<div class="scanner-page" id="scanner-page">
+
+  <!-- Scanner Header -->
+  <div class="scanner-header">
+    <a href="dashboard.html" style="color:white;font-size:22px;text-decoration:none;line-height:1">←</a>
+    <div style="flex:1;margin-left:12px">
+      <div style="font-weight:700;font-size:16px">สแกน QR เช็คชื่อ</div>
+      <div style="font-size:12px;opacity:0.7" id="scan-date-display"></div>
+    </div>
+    <select id="scan-class-select"
+            style="background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:white;
+                   padding:6px 10px;border-radius:8px;font-size:13px;font-family:var(--font-family);
+                   outline:none;max-width:140px">
+      <option value="">เลือกห้อง...</option>
+    </select>
+  </div>
+
+  <!-- Error when no class selected -->
+  <div id="no-class-msg" style="flex:1;display:flex;align-items:center;justify-content:center;
+       background:#111;color:rgba(255,255,255,0.7);text-align:center;padding:24px">
+    <div>
+      <div style="font-size:48px;margin-bottom:16px">🏫</div>
+      <div style="font-size:18px;font-weight:700;color:white;margin-bottom:8px">เลือกห้องเรียนก่อน</div>
+      <div style="font-size:14px">กรุณาเลือกห้องเรียนในแถบด้านบน</div>
+    </div>
+  </div>
+
+  <!-- Camera container -->
+  <div id="video-container" style="display:none">
+    <video id="qr-video" playsinline muted></video>
+    <canvas id="qr-canvas" style="display:none"></canvas>
+
+    <div class="scan-overlay">
+      <div class="scan-frame">
+        <div class="corner-bl"></div>
+        <div class="corner-br"></div>
+        <div class="scan-line"></div>
+      </div>
+      <div class="scan-hint">วาง QR Code ของนักเรียนไว้ในกรอบ</div>
+    </div>
+  </div>
+
+  <!-- Camera error -->
+  <div id="camera-error" style="display:none;flex:1;align-items:center;justify-content:center;
+       background:#111;color:white;text-align:center;padding:24px;flex-direction:column;gap:16px">
+    <div style="font-size:56px">📷</div>
+    <div style="font-size:18px;font-weight:700" id="camera-error-text">เปิดกล้องไม่ได้</div>
+    <button class="btn btn-primary" onclick="startScanner()">ลองอีกครั้ง</button>
+  </div>
+
+  <!-- Bottom Panel -->
+  <div class="scanner-bottom">
+    <!-- Scan Result -->
+    <div id="scan-result-area"></div>
+
+    <!-- Action Buttons -->
+    <div id="scan-actions" style="display:flex;gap:12px;margin-top:12px">
+      <button class="btn btn-secondary" style="flex:1" onclick="goViewPending()">
+        ⭕ ยังไม่มา
+      </button>
+      <button class="btn btn-primary" style="flex:1" id="btn-continue" onclick="resumeScan()" disabled>
+        📷 สแกนต่อ
+      </button>
+    </div>
+
+    <!-- Manual status override -->
+    <div id="status-override" class="hidden" style="margin-top:12px">
+      <div style="font-size:13px;color:var(--text-secondary);margin-bottom:8px;font-weight:600">แก้ไขสถานะ:</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-sm btn-success" onclick="updateStatus('present')">✅ มา</button>
+        <button class="btn btn-sm btn-warning" onclick="updateStatus('late')">⏰ สาย</button>
+        <button class="btn btn-sm" style="background:var(--status-leave-bg);color:var(--status-leave)" onclick="updateStatus('leave')">🔵 ลา</button>
+        <button class="btn btn-sm btn-danger" onclick="updateStatus('absent')">❌ ขาด</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast-container" style="bottom:12px"></div>
+
+<!-- jsQR for QR decoding -->
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/scanner.js"></script>
+<script>
+let _scanUser = null;
+let _lastScannedAttendanceId = null;
+let _scanning = false;
+let _lastQrToken = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _scanUser = await Auth.requireLogin();
+  if (!_scanUser) return;
+
+  $id('scan-date-display').textContent = formatDateThai();
+
+  await loadScanClasses();
+
+  $id('scan-class-select').addEventListener('change', onClassChange);
+});
+
+async function loadScanClasses() {
+  const res = await API.listClasses();
+  if (!res.ok) { showToast(res.message, 'error'); return; }
+
+  const classes = res.data || [];
+  const sel = $id('scan-class-select');
+  sel.innerHTML = '<option value="">เลือกห้อง...</option>' +
+    classes.map(c => `<option value="${escapeHtml(c.class_id)}">${escapeHtml(c.class_name)}</option>`).join('');
+
+  // Restore last class
+  const lastClass = lsGet(APP_CONFIG.STORAGE_KEYS.LAST_CLASS, '');
+  if (lastClass && classes.find(c => c.class_id === lastClass)) {
+    sel.value = lastClass;
+    onClassChange();
+  }
+}
+
+function onClassChange() {
+  const classId = $id('scan-class-select').value;
+  if (!classId) {
+    $id('no-class-msg').style.display = 'flex';
+    $id('video-container').style.display = 'none';
+    Scanner.stop();
+    return;
+  }
+  lsSet(APP_CONFIG.STORAGE_KEYS.LAST_CLASS, classId);
+  $id('no-class-msg').style.display = 'none';
+  startScanner();
+}
+
+async function startScanner() {
+  $id('camera-error').style.display = 'none';
+  $id('video-container').style.display = 'block';
+  $id('scan-result-area').innerHTML = '';
+  hideEl('status-override');
+  $id('btn-continue').disabled = true;
+
+  const result = await Scanner.start(
+    $id('qr-video'),
+    $id('qr-canvas'),
+    onQrDetected
+  );
+
+  if (!result.ok) {
+    $id('video-container').style.display = 'none';
+    $id('camera-error-text').textContent = result.message;
+    $id('camera-error').style.display = 'flex';
+  }
+}
+
+// Prevent duplicate scan of same token within 3 seconds
+let _lastScanTime = 0;
+let _processing   = false;
+
+async function onQrDetected(token) {
+  const now = Date.now();
+  if (_processing) return;
+  if (token === _lastQrToken && now - _lastScanTime < 3000) return;
+
+  _lastQrToken  = token;
+  _lastScanTime = now;
+  _processing   = true;
+
+  Scanner.pause();
+
+  const classId = $id('scan-class-select').value;
+  if (!classId) {
+    _processing = false;
+    Scanner.resume();
+    return;
+  }
+
+  showScanResult('loading', null);
+
+  // Check offline
+  if (!navigator.onLine) {
+    queueOfflineScan(token, classId);
+    showScanResult('offline', { qr_token: token });
+    _processing = false;
+    $id('btn-continue').disabled = false;
+    return;
+  }
+
+  const res = await API.scanAttendance(token, classId, today());
+  _processing = false;
+
+  if (res.ok && res.data) {
+    const d = res.data;
+    _lastScannedAttendanceId = d.attendance_id;
+    const status = d.status === 'late' ? 'late' : 'success';
+    showScanResult(status, d);
+    showEl('status-override');
+    vibrate([50, 30, 50]);
+    beep(status === 'late' ? 'warning' : 'success');
+  } else if (res.error === 'ALREADY_SCANNED') {
+    showScanResult('duplicate', res.data);
+    vibrate([200]);
+    beep('error');
+  } else if (res.error === 'WRONG_CLASS') {
+    showScanResult('wrongclass', res.data);
+    vibrate([200]);
+    beep('error');
+  } else {
+    showScanResult('error', { message: res.message });
+    vibrate([200]);
+    beep('error');
+  }
+
+  $id('btn-continue').disabled = false;
+}
+
+function showScanResult(type, data) {
+  const area = $id('scan-result-area');
+  const t = formatTime(new Date());
+
+  if (type === 'loading') {
+    area.innerHTML = `
+      <div style="text-align:center;padding:16px">
+        <div class="spinner" style="margin:0 auto 12px"></div>
+        <div style="font-weight:600;color:var(--text-secondary)">กำลังตรวจสอบ...</div>
+      </div>`;
+    return;
+  }
+
+  const configs = {
+    success:   { cls: 'success', icon: '✅', title: 'เช็คชื่อสำเร็จ', statusText: 'มา' },
+    late:      { cls: 'late',    icon: '⏰', title: 'เช็คชื่อสำเร็จ', statusText: 'สาย' },
+    duplicate: { cls: 'duplicate', icon: '🔔', title: 'สแกนซ้ำ', statusText: '' },
+    wrongclass:{ cls: 'error',   icon: '⚠️', title: 'ผิดห้องเรียน', statusText: '' },
+    offline:   { cls: 'duplicate', icon: '📤', title: 'บันทึกไว้แล้ว', statusText: 'จะ Sync เมื่อมีเน็ต' },
+    error:     { cls: 'error',   icon: '❌', title: 'เกิดข้อผิดพลาด', statusText: '' },
+  };
+
+  const cfg = configs[type] || configs.error;
+
+  let bodyHtml = '';
+  if (data && data.first_name) {
+    bodyHtml = `
+      <div class="scan-result-name">${escapeHtml(data.first_name)} ${escapeHtml(data.last_name)}</div>
+      <div class="scan-result-info">${escapeHtml(data.class_name || '')} · เลขที่ ${escapeHtml(String(data.student_no || ''))}</div>
+      <div class="scan-result-time">${data.scan_time || t} น.</div>
+    `;
+    if (type === 'duplicate') {
+      bodyHtml += `<div style="font-size:13px;color:var(--text-secondary)">สแกนครั้งแรกเวลา ${escapeHtml(data.scan_time || '')}</div>`;
+    }
+  } else if (data && data.message) {
+    bodyHtml = `<div style="font-size:15px;color:var(--text-secondary)">${escapeHtml(data.message)}</div>`;
+  }
+
+  area.innerHTML = `
+    <div class="scan-result ${cfg.cls}">
+      <div class="scan-result-icon">${cfg.icon}</div>
+      <div style="font-size:16px;font-weight:700;margin-bottom:8px">${cfg.title}</div>
+      ${bodyHtml}
+      ${cfg.statusText ? `<div style="font-size:14px;font-weight:600;margin-top:8px">${escapeHtml(cfg.statusText)}</div>` : ''}
+    </div>`;
+}
+
+function resumeScan() {
+  $id('scan-result-area').innerHTML = '';
+  hideEl('status-override');
+  $id('btn-continue').disabled = true;
+  Scanner.resume();
+}
+
+async function updateStatus(status) {
+  if (!_lastScannedAttendanceId) return;
+  const res = await API.updateAttendanceStatus(_lastScannedAttendanceId, status, '');
+  if (res.ok) {
+    showToast(`อัปเดตเป็น "${APP_CONFIG.STATUS_LABELS[status]}" แล้ว`, 'success');
+  } else {
+    showToast(res.message, 'error');
+  }
+}
+
+function goViewPending() {
+  const classId = $id('scan-class-select').value;
+  window.location.href = `reports.html?tab=pending&class=${encodeURIComponent(classId)}`;
+}
+
+/* ============================================================
+   Offline Queue
+   ============================================================ */
+function queueOfflineScan(qrToken, classId) {
+  const queue = lsGet(APP_CONFIG.OFFLINE_QUEUE_KEY, []);
+  // Prevent duplicate in queue
+  const exists = queue.find(q => q.qr_token === qrToken && q.date === today());
+  if (!exists) {
+    queue.push({
+      qr_token: qrToken,
+      class_id: classId,
+      date:     today(),
+      queued_at: new Date().toISOString(),
+    });
+    lsSet(APP_CONFIG.OFFLINE_QUEUE_KEY, queue);
+  }
+}
+
+// Stop scanner when leaving page
+window.addEventListener('beforeunload', () => Scanner.stop());
+</script>
+</body>
+</html>

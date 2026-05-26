@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Offline Queue — LineUp Check</title>
+  <meta name="description" content="รายการสแกนที่รอ Sync">
+  <meta name="theme-color" content="#2563EB">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+</head>
+<body>
+<div class="page-wrapper">
+  <header class="app-header">
+    <div class="header-left">
+      <a href="dashboard.html" class="header-btn">←</a>
+    </div>
+    <div class="header-title">Offline Queue</div>
+    <div class="header-right">
+      <button class="header-btn" onclick="clearAll()" title="ล้างทั้งหมด">🗑️</button>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="alert alert-info mb-md">
+      <span class="alert-icon">ℹ️</span>
+      <div class="alert-content">
+        <div class="alert-title">รายการรอ Sync</div>
+        <div class="alert-text">รายการที่สแกนขณะไม่มีอินเทอร์เน็ต ระบบจะส่งเมื่อเชื่อมต่อได้</div>
+      </div>
+    </div>
+
+    <div id="queue-count" class="card card-sm mb-md" style="text-align:center">
+      <div style="font-size:32px;font-weight:800;color:var(--brand-primary)" id="count-display">0</div>
+      <div style="color:var(--text-secondary);font-size:14px">รายการรอ Sync</div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:16px">
+      <button class="btn btn-primary btn-block" id="btn-sync" onclick="syncAll()">
+        📤 Sync ทั้งหมด
+      </button>
+      <button class="btn btn-secondary" onclick="loadQueue()" style="width:48px;flex-shrink:0">🔄</button>
+    </div>
+
+    <div id="sync-progress" class="hidden mb-md">
+      <div style="font-size:14px;color:var(--text-secondary);margin-bottom:8px" id="sync-status-text">กำลัง Sync...</div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="sync-progress-fill" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="list-card" id="queue-list">
+      <div class="empty-state" style="padding:32px">
+        <div class="empty-state-icon">📤</div>
+        <div class="empty-state-title">ไม่มีรายการค้าง</div>
+        <div class="empty-state-text">รายการสแกนทั้งหมดถูกส่งแล้ว</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+let _offlineUser = null;
+let _queue = [];
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _offlineUser = await Auth.requireLogin();
+  if (!_offlineUser) return;
+  loadQueue();
+});
+
+function loadQueue() {
+  _queue = lsGet(APP_CONFIG.OFFLINE_QUEUE_KEY, []);
+  $id('count-display').textContent = _queue.length;
+  renderQueue();
+}
+
+function renderQueue() {
+  const container = $id('queue-list');
+
+  if (_queue.length === 0) {
+    container.innerHTML = `
+      <div class="empty-state" style="padding:32px">
+        <div class="empty-state-icon">✅</div>
+        <div class="empty-state-title">ไม่มีรายการค้าง</div>
+        <div class="empty-state-text">ทุกอย่าง Sync สำเร็จแล้ว</div>
+      </div>`;
+    return;
+  }
+
+  container.innerHTML = _queue.map((item, idx) => `
+    <div class="list-item" id="queue-item-${idx}">
+      <div class="list-item-avatar" style="font-size:16px">📤</div>
+      <div class="list-item-content">
+        <div class="list-item-title" style="font-family:monospace;font-size:13px">${escapeHtml(item.qr_token)}</div>
+        <div class="list-item-subtitle">
+          ห้อง: ${escapeHtml(item.class_id)} · วันที่ ${escapeHtml(item.date)}
+          <br>${escapeHtml(item.queued_at ? formatDateTime(item.queued_at) : '')}
+        </div>
+      </div>
+      <div class="list-item-action">
+        <button class="btn btn-danger btn-sm" onclick="removeItem(${idx})">✕</button>
+      </div>
+    </div>`).join('');
+}
+
+async function syncAll() {
+  if (_queue.length === 0) {
+    showToast('ไม่มีรายการรอ Sync', 'info');
+    return;
+  }
+
+  if (!navigator.onLine) {
+    showToast('ยังไม่มีอินเทอร์เน็ต — กรุณาลองใหม่ภายหลัง', 'error');
+    return;
+  }
+
+  showEl('sync-progress');
+  $id('btn-sync').disabled = true;
+
+  const total = _queue.length;
+  let success = 0;
+  let failed  = 0;
+  const remaining = [];
+
+  for (let i = 0; i < _queue.length; i++) {
+    const item = _queue[i];
+    const pct = Math.round(((i + 1) / total) * 100);
+    $id('sync-progress-fill').style.width = pct + '%';
+    $id('sync-status-text').textContent = `กำลัง Sync ${i+1}/${total}...`;
+
+    const res = await API.scanAttendance(item.qr_token, item.class_id, item.date);
+
+    if (res.ok || res.error === 'ALREADY_SCANNED') {
+      success++;
+      // Mark item done visually
+      const el = $id(`queue-item-${i}`);
+      if (el) el.style.opacity = '0.4';
+    } else {
+      failed++;
+      remaining.push(item);
+    }
+  }
+
+  // Update queue — keep only failed items
+  lsSet(APP_CONFIG.OFFLINE_QUEUE_KEY, remaining);
+  _queue = remaining;
+
+  hideEl('sync-progress');
+  $id('btn-sync').disabled = false;
+  $id('count-display').textContent = remaining.length;
+  renderQueue();
+
+  showToast(
+    `Sync สำเร็จ ${success} รายการ${failed > 0 ? ` · ล้มเหลว ${failed} รายการ` : ''}`,
+    failed > 0 ? 'warning' : 'success'
+  );
+}
+
+function removeItem(idx) {
+  _queue.splice(idx, 1);
+  lsSet(APP_CONFIG.OFFLINE_QUEUE_KEY, _queue);
+  $id('count-display').textContent = _queue.length;
+  renderQueue();
+}
+
+function clearAll() {
+  if (!confirm('ต้องการลบรายการทั้งหมดออกจาก Queue ใช่หรือไม่?')) return;
+  lsSet(APP_CONFIG.OFFLINE_QUEUE_KEY, []);
+  _queue = [];
+  $id('count-display').textContent = 0;
+  renderQueue();
+  showToast('ล้าง Queue สำเร็จ', 'success');
+}
+</script>
+</body>
+</html>

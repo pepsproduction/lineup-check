@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>นักเรียน — LineUp Check</title>
+  <meta name="description" content="จัดการรายชื่อนักเรียน">
+  <meta name="theme-color" content="#2563EB">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+</head>
+<body>
+<div class="page-wrapper">
+  <header class="app-header">
+    <div class="header-left">
+      <a href="dashboard.html" class="header-btn">←</a>
+    </div>
+    <div class="header-title">นักเรียน <span id="student-count-badge" style="font-size:13px;opacity:0.8;font-weight:400"></span></div>
+    <div class="header-right">
+      <button class="header-btn" onclick="openAddStudent()" title="เพิ่มนักเรียน">➕</button>
+    </div>
+  </header>
+
+  <div id="connection-banner" class="connection-banner"></div>
+
+  <main class="main-content">
+    <!-- Search + Filter -->
+    <div class="search-bar">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-student" class="form-control" placeholder="ค้นหาชื่อ, เลขที่, รหัส...">
+    </div>
+
+    <div class="flex gap-sm mb-md" style="align-items:center">
+      <label style="font-size:14px;font-weight:600;flex-shrink:0;color:var(--text-secondary)">ห้อง:</label>
+      <select id="filter-class" class="form-control" style="height:38px;font-size:14px">
+        <option value="">ทั้งหมด</option>
+      </select>
+    </div>
+
+    <!-- Import button -->
+    <div class="flex gap-sm mb-md">
+      <button class="btn btn-outline btn-sm" onclick="openImportModal()">📂 Import CSV</button>
+      <a href="qr-print.html" class="btn btn-outline btn-sm">🖨️ พิมพ์ QR</a>
+    </div>
+
+    <!-- Student List -->
+    <div class="list-card" id="student-list">
+      <div class="empty-state" style="padding:32px">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">
+      <span class="nav-icon">🏠</span><span>หน้าแรก</span>
+    </a>
+    <a href="scan.html" class="nav-scan">📷</a>
+    <a href="classes.html" class="nav-item">
+      <span class="nav-icon">🏫</span><span>ห้อง</span>
+    </a>
+    <a href="reports.html" class="nav-item">
+      <span class="nav-icon">📊</span><span>รายงาน</span>
+    </a>
+    <a href="settings.html" class="nav-item">
+      <span class="nav-icon">⚙️</span><span>ตั้งค่า</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Add/Edit Student Modal -->
+<div class="modal-overlay" id="student-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="modal-student-title">เพิ่มนักเรียน</h2>
+    <form id="student-form" novalidate onsubmit="event.preventDefault(); saveStudent()">
+      <div class="form-group">
+        <label class="form-label required" for="modal-class-id">ห้องเรียน</label>
+        <select id="modal-class-id" class="form-control" required>
+          <option value="">-- เลือกห้องเรียน --</option>
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label" for="modal-student-no">เลขที่</label>
+          <input type="number" id="modal-student-no" class="form-control" placeholder="1" min="1">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="modal-student-code">รหัสนักเรียน</label>
+          <input type="text" id="modal-student-code" class="form-control" placeholder="1001">
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group">
+          <label class="form-label required" for="modal-first-name">ชื่อ</label>
+          <input type="text" id="modal-first-name" class="form-control" placeholder="สมชาย" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label required" for="modal-last-name">นามสกุล</label>
+          <input type="text" id="modal-last-name" class="form-control" placeholder="ใจดี" required>
+        </div>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="modal-active" checked style="width:20px;height:20px;accent-color:var(--brand-primary)">
+        <label for="modal-active" style="font-weight:600;cursor:pointer">เปิดใช้งาน</label>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeModal('student-modal')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Import CSV Modal -->
+<div class="modal-overlay" id="import-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title">Import นักเรียนจาก CSV</h2>
+    <form id="import-form" novalidate onsubmit="event.preventDefault()">
+      <div class="form-group">
+        <label class="form-label required" for="import-class-id">ห้องเรียนปลายทาง</label>
+        <select id="import-class-id" class="form-control">
+          <option value="">-- เลือกห้องเรียน --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="import-file">เลือกไฟล์ CSV</label>
+        <input type="file" id="import-file" class="form-control" accept=".csv" style="height:auto;padding:10px">
+        <div class="form-hint">
+          รูปแบบ: เลขที่,รหัสนักเรียน,ชื่อ,นามสกุล<br>
+          ดูตัวอย่างได้ที่ <a href="templates/sample-students.csv" download>sample-students.csv</a>
+        </div>
+      </div>
+      <div id="import-preview-section" class="hidden">
+        <div id="import-preview"></div>
+      </div>
+      <div style="display:flex;gap:12px;margin-top:16px">
+        <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeModal('import-modal')">ยกเลิก</button>
+        <button type="button" class="btn btn-primary" style="flex:1" onclick="doImport()">📂 นำเข้าข้อมูล</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/students.js"></script>
+</body>
+</html>

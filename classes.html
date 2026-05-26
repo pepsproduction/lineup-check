@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ห้องเรียน — LineUp Check</title>
+  <meta name="description" content="จัดการห้องเรียน">
+  <meta name="theme-color" content="#2563EB">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+</head>
+<body>
+<div class="page-wrapper">
+  <header class="app-header">
+    <div class="header-left">
+      <a href="dashboard.html" class="header-btn">←</a>
+    </div>
+    <div class="header-title">ห้องเรียน</div>
+    <div class="header-right">
+      <button class="header-btn" id="btn-add-class" onclick="openAddClass()" title="เพิ่มห้องเรียน">➕</button>
+    </div>
+  </header>
+
+  <div id="connection-banner" class="connection-banner"></div>
+
+  <main class="main-content">
+    <!-- Search -->
+    <div class="search-bar mb-md">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="search-class" class="form-control" placeholder="ค้นหาห้องเรียน...">
+    </div>
+
+    <!-- List -->
+    <div id="class-list">
+      <div class="empty-state">
+        <div class="spinner"></div>
+      </div>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">
+      <span class="nav-icon">🏠</span><span>หน้าแรก</span>
+    </a>
+    <a href="scan.html" class="nav-scan">📷</a>
+    <a href="classes.html" class="nav-item active">
+      <span class="nav-icon">🏫</span><span>ห้อง</span>
+    </a>
+    <a href="reports.html" class="nav-item">
+      <span class="nav-icon">📊</span><span>รายงาน</span>
+    </a>
+    <a href="settings.html" class="nav-item">
+      <span class="nav-icon">⚙️</span><span>ตั้งค่า</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Add/Edit Class Modal -->
+<div class="modal-overlay" id="class-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="modal-class-title">เพิ่มห้องเรียน</h2>
+
+    <form id="class-form" novalidate onsubmit="event.preventDefault(); saveClass()">
+      <div class="form-group">
+        <label class="form-label required" for="modal-class-name">ชื่อห้องเรียน</label>
+        <input type="text" id="modal-class-name" class="form-control"
+               placeholder="เช่น ม.1/1, ป.4/2" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modal-level">ระดับชั้น</label>
+        <input type="text" id="modal-level" class="form-control" placeholder="เช่น มัธยมศึกษาปีที่ 1">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modal-room">ห้อง</label>
+        <input type="text" id="modal-room" class="form-control" placeholder="เช่น 101">
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="modal-owner">ครูประจำชั้น</label>
+        <select id="modal-owner" class="form-control">
+          <option value="">ไม่ระบุ</option>
+        </select>
+      </div>
+      <div class="form-group" style="display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="modal-active" checked style="width:20px;height:20px;accent-color:var(--brand-primary)">
+        <label for="modal-active" style="font-weight:600;cursor:pointer">เปิดใช้งาน</label>
+      </div>
+
+      <div style="display:flex;gap:12px;margin-top:8px">
+        <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeModal('class-modal')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/classes.js"></script>
+</body>
+</html>

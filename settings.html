@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ตั้งค่า — LineUp Check</title>
+  <meta name="description" content="ตั้งค่าระบบ LineUp Check">
+  <meta name="theme-color" content="#2563EB">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+</head>
+<body>
+<div class="page-wrapper">
+  <header class="app-header">
+    <div class="header-left">
+      <a href="dashboard.html" class="header-btn">←</a>
+    </div>
+    <div class="header-title">ตั้งค่า</div>
+    <div class="header-right"></div>
+  </header>
+
+  <div id="connection-banner" class="connection-banner"></div>
+
+  <main class="main-content">
+    <!-- User Info Card -->
+    <div class="card mb-md">
+      <div style="display:flex;align-items:center;gap:16px">
+        <div style="width:52px;height:52px;background:var(--brand-primary-light);border-radius:50%;
+                    display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;
+                    color:var(--brand-primary)" id="user-avatar">?</div>
+        <div id="user-badge">
+          <div style="font-weight:700">กำลังโหลด...</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <button class="btn btn-danger btn-block" data-action="logout">🚪 ออกจากระบบ</button>
+    </div>
+
+    <!-- System Settings (Admin only) -->
+    <div id="admin-settings" class="hidden">
+      <div class="section-header">
+        <h2 class="section-title">⚙️ ตั้งค่าระบบ</h2>
+      </div>
+
+      <div class="card mb-md">
+        <div class="form-group">
+          <label class="form-label" for="setting-school-name">ชื่อโรงเรียน</label>
+          <input type="text" id="setting-school-name" class="form-control" placeholder="โรงเรียน...">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="setting-late-after">เวลาเริ่มนับว่า "สาย" (HH:MM)</label>
+          <input type="time" id="setting-late-after" class="form-control" value="08:00">
+          <div class="form-hint">ถ้าสแกนหลังเวลานี้จะถือว่า "สาย"</div>
+        </div>
+        <button class="btn btn-primary btn-block" onclick="saveSettings()">💾 บันทึกตั้งค่า</button>
+      </div>
+
+      <!-- Teacher Management -->
+      <div class="section-header">
+        <h2 class="section-title">👩‍🏫 จัดการผู้ใช้</h2>
+        <button class="btn btn-primary btn-sm" onclick="openAddTeacher()">➕ เพิ่ม</button>
+      </div>
+      <div class="list-card mb-md" id="teacher-list">
+        <div class="empty-state" style="padding:24px">
+          <div class="spinner"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- API Settings -->
+    <div class="section-header">
+      <h2 class="section-title">🔗 การเชื่อมต่อ</h2>
+    </div>
+
+    <div class="card mb-md">
+      <div class="form-group">
+        <label class="form-label" for="setting-api-url">Apps Script URL</label>
+        <input type="url" id="setting-api-url" class="form-control"
+               placeholder="https://script.google.com/macros/s/...">
+      </div>
+      <div style="display:flex;gap:12px">
+        <button class="btn btn-secondary" style="flex:1" onclick="testApiUrl()">🔍 ทดสอบ</button>
+        <button class="btn btn-primary" style="flex:1" onclick="saveApiUrl()">💾 บันทึก URL</button>
+      </div>
+      <div id="api-test-result" class="hidden mt-md"></div>
+    </div>
+
+    <!-- App Info -->
+    <div class="card mb-md">
+      <div style="font-size:14px;color:var(--text-secondary)">
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)">
+          <span>Version</span><span>v1.0.0</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border-color)">
+          <span>ฐานข้อมูล</span><span>Google Sheets</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;padding:8px 0">
+          <span>Hosting</span><span>GitHub Pages</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="text-center">
+      <a href="offline.html" class="btn btn-ghost btn-sm">📤 Offline Queue</a>
+      <a href="setup.html" class="btn btn-ghost btn-sm">⚙️ ตั้งค่าใหม่</a>
+    </div>
+  </main>
+
+  <nav class="bottom-nav">
+    <a href="dashboard.html" class="nav-item">
+      <span class="nav-icon">🏠</span><span>หน้าแรก</span>
+    </a>
+    <a href="scan.html" class="nav-scan">📷</a>
+    <a href="classes.html" class="nav-item">
+      <span class="nav-icon">🏫</span><span>ห้อง</span>
+    </a>
+    <a href="reports.html" class="nav-item">
+      <span class="nav-icon">📊</span><span>รายงาน</span>
+    </a>
+    <a href="settings.html" class="nav-item active">
+      <span class="nav-icon">⚙️</span><span>ตั้งค่า</span>
+    </a>
+  </nav>
+</div>
+
+<!-- Add Teacher Modal -->
+<div class="modal-overlay" id="teacher-modal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 class="modal-title" id="modal-teacher-title">เพิ่มผู้ใช้</h2>
+    <form id="teacher-form" novalidate onsubmit="event.preventDefault(); saveTeacher()">
+      <div class="form-group">
+        <label class="form-label required" for="modal-fullname">ชื่อ-นามสกุล</label>
+        <input type="text" id="modal-fullname" class="form-control" placeholder="ชื่อ นามสกุล" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="modal-username">ชื่อผู้ใช้</label>
+        <input type="text" id="modal-username" class="form-control" placeholder="username" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="modal-password">รหัสผ่าน</label>
+        <input type="password" id="modal-password" class="form-control" placeholder="อย่างน้อย 6 ตัว" required>
+      </div>
+      <div class="form-group">
+        <label class="form-label required" for="modal-role">บทบาท</label>
+        <select id="modal-role" class="form-control" required>
+          <option value="teacher">ครู (teacher)</option>
+          <option value="assistant">ผู้ช่วย (assistant)</option>
+          <option value="admin">ผู้ดูแลระบบ (admin)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:12px">
+        <button type="button" class="btn btn-secondary" style="flex:1" onclick="closeModal('teacher-modal')">ยกเลิก</button>
+        <button type="submit" class="btn btn-primary" style="flex:1">บันทึก</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/app.js"></script>
+<script>
+let _settingsUser = null;
+
+document.addEventListener('DOMContentLoaded', async () => {
+  _settingsUser = await Auth.requireLogin();
+  if (!_settingsUser) return;
+
+  renderPageHeader(_settingsUser);
+
+  // User avatar
+  const avatar = $id('user-avatar');
+  if (avatar) avatar.textContent = getInitials(_settingsUser.full_name || _settingsUser.username);
+
+  // Load API URL
+  $id('setting-api-url').value = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '');
+
+  if (Auth.canManageSystem(_settingsUser)) {
+    showEl('admin-settings');
+    loadServerSettings();
+    loadTeachers();
+  }
+});
+
+async function loadServerSettings() {
+  const res = await API.getSettings();
+  if (!res.ok) return;
+
+  const s = res.data || {};
+  if (s.school_name) {
+    $id('setting-school-name').value = s.school_name;
+    lsSet(APP_CONFIG.STORAGE_KEYS.SCHOOL_NAME, s.school_name);
+  }
+  if (s.late_after) {
+    $id('setting-late-after').value = s.late_after;
+    lsSet(APP_CONFIG.STORAGE_KEYS.LATE_AFTER, s.late_after);
+  }
+}
+
+async function saveSettings() {
+  const school   = $id('setting-school-name').value.trim();
+  const lateAfter = $id('setting-late-after').value;
+
+  showLoading('กำลังบันทึก...');
+  const res = await API.updateSettings({ school_name: school, late_after: lateAfter });
+  hideLoading();
+
+  if (res.ok) {
+    lsSet(APP_CONFIG.STORAGE_KEYS.SCHOOL_NAME, school);
+    lsSet(APP_CONFIG.STORAGE_KEYS.LATE_AFTER, lateAfter);
+    showToast('บันทึกตั้งค่าสำเร็จ', 'success');
+  } else {
+    showToast(res.message, 'error');
+  }
+}
+
+async function loadTeachers() {
+  const res = await API.listTeachers();
+  const container = $id('teacher-list');
+  if (!res.ok || !res.data?.length) {
+    container.innerHTML = '<div class="empty-state" style="padding:24px"><div class="empty-state-icon">👤</div><div class="empty-state-title">ยังไม่มีผู้ใช้</div></div>';
+    return;
+  }
+
+  const roleLabel = { admin: 'ผู้ดูแล', teacher: 'ครู', assistant: 'ผู้ช่วย' };
+  container.innerHTML = res.data.map(t => `
+    <div class="list-item">
+      <div class="list-item-avatar">${escapeHtml(getInitials(t.full_name))}</div>
+      <div class="list-item-content">
+        <div class="list-item-title">${escapeHtml(t.full_name)}</div>
+        <div class="list-item-subtitle">${escapeHtml(t.username)} · ${escapeHtml(roleLabel[t.role] || t.role)}</div>
+      </div>
+      <div class="list-item-action">
+        <span class="badge ${t.role === 'admin' ? 'badge-admin' : 'badge-teacher'}">${escapeHtml(roleLabel[t.role] || t.role)}</span>
+      </div>
+    </div>`).join('');
+}
+
+function openAddTeacher() {
+  $id('teacher-form').reset();
+  openModal('teacher-modal');
+}
+
+async function saveTeacher() {
+  const fullname = $id('modal-fullname').value.trim();
+  const username = $id('modal-username').value.trim();
+  const password = $id('modal-password').value;
+  const role     = $id('modal-role').value;
+
+  if (!fullname || !username || !password) {
+    showToast('กรุณากรอกข้อมูลให้ครบ', 'warning');
+    return;
+  }
+  if (password.length < 6) {
+    showToast('รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร', 'warning');
+    return;
+  }
+
+  showLoading('กำลังบันทึก...');
+  const res = await API.createTeacher({ full_name: fullname, username, password, role });
+  hideLoading();
+
+  if (res.ok) {
+    showToast('เพิ่มผู้ใช้สำเร็จ', 'success');
+    closeModal('teacher-modal');
+    loadTeachers();
+  } else {
+    showToast(res.message || 'เกิดข้อผิดพลาด', 'error');
+  }
+}
+
+async function testApiUrl() {
+  const url = $id('setting-api-url').value.trim();
+  if (!url) return;
+
+  const resultEl = $id('api-test-result');
+  showEl('api-test-result');
+  resultEl.innerHTML = '<div class="alert alert-info"><span class="alert-icon">⏳</span><div class="alert-content"><div class="alert-text">กำลังทดสอบ...</div></div></div>';
+
+  const res = await API.ping(url);
+  if (res.ok) {
+    resultEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span><div class="alert-content"><div class="alert-text">เชื่อมต่อสำเร็จ</div></div></div>';
+  } else {
+    resultEl.innerHTML = `<div class="alert alert-error"><span class="alert-icon">❌</span><div class="alert-content"><div class="alert-text">${escapeHtml(res.message)}</div></div></div>`;
+  }
+}
+
+function saveApiUrl() {
+  const url = $id('setting-api-url').value.trim();
+  if (!url) return;
+  lsSet(APP_CONFIG.STORAGE_KEYS.API_URL, url);
+  showToast('บันทึก URL สำเร็จ', 'success');
+}
+</script>
+</body>
+</html>

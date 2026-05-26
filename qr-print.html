@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>พิมพ์ QR — LineUp Check</title>
+  <meta name="description" content="พิมพ์ QR Code บัตรนักเรียน">
+  <meta name="theme-color" content="#2563EB">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+</head>
+<body>
+<div class="page-wrapper">
+  <header class="app-header no-print">
+    <div class="header-left">
+      <a href="dashboard.html" class="header-btn">←</a>
+    </div>
+    <div class="header-title">พิมพ์ QR Code</div>
+    <div class="header-right"></div>
+  </header>
+
+  <main class="main-content no-print">
+    <div class="card mb-md">
+      <div class="form-group">
+        <label class="form-label required" for="class-select">ห้องเรียน</label>
+        <select id="class-select" class="form-control">
+          <option value="">-- เลือกห้องเรียน --</option>
+        </select>
+      </div>
+      <div id="print-controls" class="hidden">
+        <p style="font-size:14px;color:var(--text-secondary);margin-bottom:12px">
+          พบนักเรียน <strong id="student-count">0</strong>
+        </p>
+        <div style="display:flex;gap:12px">
+          <button class="btn btn-primary" style="flex:1" id="btn-generate" onclick="generateCards()">
+            🔲 สร้าง QR
+          </button>
+          <button class="btn btn-success" style="flex:1" id="btn-print" onclick="window.print()" style="display:none">
+            🖨️ พิมพ์
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="alert alert-info">
+      <span class="alert-icon">💡</span>
+      <div class="alert-content">
+        <div class="alert-title">วิธีพิมพ์</div>
+        <div class="alert-text">
+          1. เลือกห้องเรียน → กด "สร้าง QR"<br>
+          2. ตรวจสอบ QR ที่แสดง<br>
+          3. กด "พิมพ์" หรือ Ctrl+P<br>
+          4. เลือกขนาด A4, ไม่มีขอบ
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <!-- Print Area -->
+  <div id="print-area" class="hidden">
+    <div class="qr-print-grid no-print" style="margin:16px">
+      <div id="qr-grid"></div>
+    </div>
+    <!-- Print version uses full width -->
+    <div class="print-only" style="display:none">
+      <div id="qr-grid-print"></div>
+    </div>
+  </div>
+
+  <!-- Reuse same grid for both screen and print -->
+  <div id="print-area-grid" class="hidden" style="padding:8px">
+    <div id="qr-grid" class="qr-print-grid"></div>
+  </div>
+</div>
+
+<div id="toast-container" class="no-print"></div>
+
+<!-- QR Code generator library -->
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
+<script src="assets/js/app.js"></script>
+<script src="assets/js/qr-print.js"></script>
+</body>
+</html>

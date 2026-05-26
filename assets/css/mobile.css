@@ -1,0 +1,283 @@
+/* ============================================================
+   LineUp Check — mobile.css
+   Additional mobile-specific overrides and print styles
+   ============================================================ */
+
+/* ---------- Mobile Viewport ---------- */
+@media (max-width: 480px) {
+  :root {
+    --spacing-lg: 20px;
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-xs);
+  }
+
+  .stat-card .stat-value {
+    font-size: 20px;
+  }
+
+  .quick-actions {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-sm);
+  }
+
+  .quick-action-btn {
+    min-height: 80px;
+    padding: var(--spacing-md);
+  }
+
+  .quick-action-btn .action-icon {
+    font-size: 28px;
+  }
+}
+
+/* ---------- Safe area for iPhone notch ---------- */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .bottom-nav {
+    padding-bottom: env(safe-area-inset-bottom);
+    height: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom));
+  }
+
+  .main-content {
+    padding-bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + var(--spacing-md));
+  }
+
+  .fab {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
+  }
+
+  #toast-container {
+    bottom: calc(var(--bottom-nav-height) + env(safe-area-inset-bottom) + 16px);
+  }
+}
+
+/* ---------- QR Scanner Page ---------- */
+.scanner-page {
+  background: #000;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.scanner-header {
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: var(--spacing-md);
+  padding-top: max(var(--spacing-md), env(safe-area-inset-top));
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-md);
+  z-index: 10;
+}
+
+#video-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#qr-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,0.4);
+}
+
+.scan-frame {
+  width: min(250px, 70vw);
+  height: min(250px, 70vw);
+  position: relative;
+}
+
+.scan-frame::before,
+.scan-frame::after,
+.scan-frame .corner-tl,
+.scan-frame .corner-tr,
+.scan-frame .corner-bl,
+.scan-frame .corner-br {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: white;
+  border-style: solid;
+}
+
+.scan-frame::before {
+  top: 0; left: 0;
+  border-width: 4px 0 0 4px;
+  border-radius: 4px 0 0 0;
+}
+
+.scan-frame::after {
+  top: 0; right: 0;
+  border-width: 4px 4px 0 0;
+  border-radius: 0 4px 0 0;
+}
+
+.scan-frame .corner-bl {
+  bottom: 0; left: 0;
+  border-width: 0 0 4px 4px;
+  border-radius: 0 0 0 4px;
+}
+
+.scan-frame .corner-br {
+  bottom: 0; right: 0;
+  border-width: 0 4px 4px 0;
+  border-radius: 0 0 4px 0;
+}
+
+.scan-line {
+  position: absolute;
+  left: 8px; right: 8px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, #2563EB, transparent);
+  top: 0;
+  animation: scan-sweep 2s linear infinite;
+}
+
+@keyframes scan-sweep {
+  0%   { top: 8px; }
+  50%  { top: calc(100% - 8px); }
+  100% { top: 8px; }
+}
+
+.scan-hint {
+  color: white;
+  text-align: center;
+  margin-top: var(--spacing-lg);
+  font-size: var(--font-size-sm);
+  padding: 0 var(--spacing-lg);
+  text-shadow: 0 1px 3px rgba(0,0,0,0.8);
+}
+
+.scanner-bottom {
+  background: var(--bg-card);
+  padding: var(--spacing-md);
+  padding-bottom: max(var(--spacing-md), env(safe-area-inset-bottom));
+  max-height: 45vh;
+  overflow-y: auto;
+}
+
+/* ---------- QR Print Styles ---------- */
+.qr-print-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+}
+
+.qr-card {
+  border: 1px solid #ddd;
+  padding: 8px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+
+.qr-card-no {
+  font-size: 11px;
+  color: #666;
+}
+
+.qr-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.qr-card-class {
+  font-size: 11px;
+  color: #444;
+}
+
+.qr-card-img {
+  width: 100px;
+  height: 100px;
+}
+
+.qr-card-token {
+  font-size: 9px;
+  color: #999;
+  font-family: monospace;
+}
+
+@media print {
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  body {
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+
+  .no-print { display: none !important; }
+
+  .print-only { display: block !important; }
+
+  .app-header, .bottom-nav, .fab, #toast-container {
+    display: none !important;
+  }
+
+  .main-content {
+    padding: 0;
+    max-width: 100%;
+  }
+
+  .qr-print-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .qr-card {
+    border: 0.5pt solid #ccc;
+    padding: 6pt;
+    margin: 0;
+  }
+
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+}
+
+/* ---------- Landscape adjustments ---------- */
+@media (orientation: landscape) and (max-height: 500px) {
+  .scanner-bottom {
+    max-height: 35vh;
+  }
+
+  .scan-frame {
+    width: min(180px, 40vh);
+    height: min(180px, 40vh);
+  }
+}
+
+/* ---------- Tablet adjustments ---------- */
+@media (min-width: 600px) {
+  .main-content {
+    max-width: 600px;
+  }
+
+  .quick-actions {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .stats-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}

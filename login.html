@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>เข้าสู่ระบบ — LineUp Check</title>
+  <meta name="description" content="เข้าสู่ระบบ LineUp Check">
+  <meta name="theme-color" content="#2563EB">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+  <style>
+    body { background: linear-gradient(135deg, #1D4ED8 0%, #2563EB 50%, #7C3AED 100%); min-height: 100vh; }
+    .login-wrapper {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .login-card {
+      background: white;
+      border-radius: 24px;
+      padding: 32px 24px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.25);
+    }
+    .login-logo {
+      text-align: center;
+      font-size: 48px;
+      margin-bottom: 8px;
+    }
+    .login-title {
+      text-align: center;
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--brand-primary);
+      margin-bottom: 4px;
+    }
+    .login-subtitle {
+      text-align: center;
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 28px;
+    }
+    .show-password-btn {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-size: 18px;
+      color: var(--gray-400);
+      padding: 4px;
+    }
+    .password-wrapper { position: relative; }
+    .password-wrapper .form-control { padding-right: 44px; }
+    .login-footer {
+      text-align: center;
+      margin-top: 20px;
+      font-size: 13px;
+      color: rgba(255,255,255,0.7);
+    }
+    .login-footer a { color: white; font-weight: 600; }
+    #expired-alert { margin-bottom: 16px; }
+  </style>
+</head>
+<body>
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="login-logo">📋</div>
+    <h1 class="login-title">LineUp Check</h1>
+    <p class="login-subtitle">ระบบเช็คชื่อนักเรียน</p>
+
+    <div id="expired-alert" class="alert alert-warning hidden">
+      <span class="alert-icon">⚠️</span>
+      <div class="alert-content">
+        <div class="alert-title">Session หมดอายุ</div>
+        <div class="alert-text">กรุณาเข้าสู่ระบบใหม่</div>
+      </div>
+    </div>
+
+    <div id="no-url-alert" class="alert alert-info hidden">
+      <span class="alert-icon">ℹ️</span>
+      <div class="alert-content">
+        <div class="alert-title">ยังไม่ได้ตั้งค่า</div>
+        <div class="alert-text">กรุณา<a href="setup.html">ตั้งค่า Apps Script URL</a>ก่อน</div>
+      </div>
+    </div>
+
+    <form id="login-form" novalidate>
+      <div class="form-group">
+        <label class="form-label required" for="username">ชื่อผู้ใช้</label>
+        <input type="text" id="username" class="form-control"
+               placeholder="กรอกชื่อผู้ใช้"
+               autocomplete="username"
+               inputmode="text"
+               required>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label required" for="password">รหัสผ่าน</label>
+        <div class="password-wrapper">
+          <input type="password" id="password" class="form-control"
+                 placeholder="กรอกรหัสผ่าน"
+                 autocomplete="current-password"
+                 required>
+          <button type="button" class="show-password-btn" id="toggle-password" aria-label="แสดง/ซ่อนรหัสผ่าน">
+            👁️
+          </button>
+        </div>
+      </div>
+
+      <div id="login-error" class="alert alert-error hidden" role="alert">
+        <span class="alert-icon">❌</span>
+        <div class="alert-content">
+          <div class="alert-text" id="login-error-text"></div>
+        </div>
+      </div>
+
+      <button type="submit" id="btn-login" class="btn btn-primary btn-block btn-lg">
+        เข้าสู่ระบบ
+      </button>
+    </form>
+  </div>
+
+  <div class="login-footer">
+    ยังไม่ได้ตั้งค่า? <a href="setup.html">ตั้งค่าครั้งแรก</a>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script src="assets/js/auth.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Already logged in?
+  if (Auth.isLoggedIn() && lsGet(APP_CONFIG.STORAGE_KEYS.API_URL)) {
+    window.location.href = 'dashboard.html';
+    return;
+  }
+
+  // No API URL?
+  if (!lsGet(APP_CONFIG.STORAGE_KEYS.API_URL)) {
+    showEl('no-url-alert');
+  }
+
+  // Session expired message
+  const params = new URLSearchParams(location.search);
+  if (params.get('reason') === 'expired') {
+    showEl('expired-alert');
+  }
+
+  // Toggle password visibility
+  $id('toggle-password').addEventListener('click', () => {
+    const pw = $id('password');
+    pw.type = pw.type === 'password' ? 'text' : 'password';
+  });
+
+  // Login form submit
+  $id('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = $id('btn-login');
+    const username = $id('username').value.trim();
+    const password = $id('password').value;
+
+    if (!username || !password) {
+      showLoginError('กรุณากรอกชื่อผู้ใช้และรหัสผ่าน');
+      return;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'กำลังเข้าสู่ระบบ...';
+    hideEl('login-error');
+
+    const result = await Auth.login(username, password);
+
+    if (result.ok) {
+      showToast('เข้าสู่ระบบสำเร็จ', 'success');
+      window.location.href = 'dashboard.html';
+    } else {
+      showLoginError(result.message || 'เข้าสู่ระบบไม่สำเร็จ');
+      btn.disabled = false;
+      btn.textContent = 'เข้าสู่ระบบ';
+    }
+  });
+});
+
+function showLoginError(msg) {
+  $id('login-error-text').textContent = msg;
+  showEl('login-error');
+  $id('password').value = '';
+  $id('password').focus();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>ตั้งค่าระบบ — LineUp Check</title>
+  <meta name="description" content="ตั้งค่า Apps Script URL สำหรับ LineUp Check">
+  <meta name="theme-color" content="#2563EB">
+  <link rel="stylesheet" href="assets/css/style.css">
+  <link rel="stylesheet" href="assets/css/mobile.css">
+  <style>
+    body { background: var(--bg-page); }
+    .setup-wrapper {
+      max-width: 600px;
+      margin: 0 auto;
+      padding: 24px 16px 80px;
+    }
+    .setup-header-section {
+      text-align: center;
+      padding: 32px 0 24px;
+    }
+    .setup-icon { font-size: 64px; margin-bottom: 16px; }
+    .setup-title { font-size: 26px; font-weight: 800; color: var(--text-primary); }
+    .setup-desc { color: var(--text-secondary); margin-top: 8px; }
+    .step-card {
+      background: white;
+      border-radius: 16px;
+      padding: 20px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border-color);
+      box-shadow: var(--shadow-sm);
+    }
+    .step-number {
+      width: 32px;
+      height: 32px;
+      background: var(--brand-primary);
+      color: white;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+    .step-title { font-weight: 700; font-size: 16px; }
+    .instruction-list {
+      list-style: decimal;
+      padding-left: 20px;
+      color: var(--text-secondary);
+      font-size: 15px;
+      line-height: 2;
+    }
+    .code-block {
+      background: var(--gray-900);
+      color: #86EFAC;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-family: monospace;
+      font-size: 13px;
+      margin: 8px 0;
+      overflow-x: auto;
+      word-break: break-all;
+    }
+    .url-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 600;
+      margin-top: 12px;
+    }
+    .url-status.success { background: var(--status-present-bg); color: var(--status-present); }
+    .url-status.error   { background: var(--status-absent-bg);  color: var(--status-absent); }
+    .url-status.testing { background: var(--brand-primary-light); color: var(--brand-primary); }
+    .url-status.hidden  { display: none; }
+  </style>
+</head>
+<body>
+<div class="setup-wrapper">
+  <div class="setup-header-section">
+    <div class="setup-icon">⚙️</div>
+    <h1 class="setup-title">ตั้งค่าระบบ</h1>
+    <p class="setup-desc">เชื่อมต่อกับ Google Apps Script ครั้งแรก<br>ทำเพียงครั้งเดียวต่ออุปกรณ์</p>
+  </div>
+
+  <!-- Step 1: Create Google Sheet -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number">1</div>
+      <div class="step-title">สร้าง Google Sheet</div>
+    </div>
+    <ol class="instruction-list">
+      <li>ไปที่ <a href="https://sheets.google.com" target="_blank">sheets.google.com</a></li>
+      <li>สร้าง Spreadsheet ใหม่ ตั้งชื่อว่า <strong>"LineUp Check DB"</strong></li>
+      <li>จำ Spreadsheet ID ไว้ (อยู่ใน URL)</li>
+    </ol>
+  </div>
+
+  <!-- Step 2: Deploy Apps Script -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number">2</div>
+      <div class="step-title">ติดตั้ง Google Apps Script</div>
+    </div>
+    <ol class="instruction-list">
+      <li>เปิด Google Sheet ที่สร้างไว้</li>
+      <li>เลือกเมนู <strong>Extensions → Apps Script</strong></li>
+      <li>ลบโค้ดเดิม แล้ววางโค้ดจากไฟล์ <code>apps-script/Code.gs</code></li>
+      <li>แก้ไข <code>SPREADSHEET_ID</code> ในโค้ดให้ตรงกับ Sheet ของคุณ</li>
+      <li>กด <strong>Save</strong> (Ctrl+S)</li>
+    </ol>
+  </div>
+
+  <!-- Step 3: Deploy Web App -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number">3</div>
+      <div class="step-title">Deploy เป็น Web App</div>
+    </div>
+    <ol class="instruction-list">
+      <li>กด <strong>Deploy → New deployment</strong></li>
+      <li>เลือก Type: <strong>Web App</strong></li>
+      <li>Execute as: <strong>Me</strong></li>
+      <li>Who has access: <strong>Anyone</strong></li>
+      <li>กด <strong>Deploy</strong> แล้วคัดลอก Web App URL</li>
+    </ol>
+  </div>
+
+  <!-- Step 4: Enter URL -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-number">4</div>
+      <div class="step-title">ใส่ Web App URL</div>
+    </div>
+    <div class="form-group">
+      <label class="form-label required" for="api-url">Apps Script Web App URL</label>
+      <input type="url" id="api-url" class="form-control"
+             placeholder="https://script.google.com/macros/s/..."
+             autocomplete="off">
+      <div class="form-hint">URL จะเริ่มต้นด้วย https://script.google.com/macros/s/</div>
+    </div>
+
+    <div id="url-status" class="url-status hidden"></div>
+
+    <div class="flex gap-sm mt-md">
+      <button class="btn btn-secondary" id="btn-test" onclick="testConnection()">
+        🔍 ทดสอบ
+      </button>
+      <button class="btn btn-primary" style="flex:1" id="btn-save" onclick="saveSetup()" disabled>
+        💾 บันทึกและเข้าใช้งาน
+      </button>
+    </div>
+  </div>
+
+  <!-- Step 5: Initial Setup -->
+  <div class="step-card" id="init-section" style="display:none">
+    <div class="step-header">
+      <div class="step-number">5</div>
+      <div class="step-title">สร้างข้อมูลเริ่มต้น</div>
+    </div>
+    <p style="color:var(--text-secondary);font-size:15px;margin-bottom:16px">
+      กดปุ่มด้านล่างเพื่อให้ Apps Script สร้าง Sheet และ Admin account เริ่มต้น
+    </p>
+    <div id="init-result" class="hidden"></div>
+    <button class="btn btn-success btn-block" onclick="runInit()">
+      🚀 สร้างข้อมูลเริ่มต้น (Setup Init)
+    </button>
+    <p class="form-hint mt-sm">⚠️ ทำเพียงครั้งเดียว — ถ้าทำซ้ำข้อมูลจะไม่ถูกลบ</p>
+  </div>
+
+  <div class="mt-md text-center">
+    <a href="index.html" style="color:var(--text-secondary);font-size:14px">← กลับหน้าหลัก</a>
+  </div>
+</div>
+
+<div id="toast-container"></div>
+
+<script src="assets/js/config.js"></script>
+<script src="assets/js/utils.js"></script>
+<script src="assets/js/api.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+  // Load saved URL if exists
+  const savedUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '');
+  if (savedUrl) {
+    $id('api-url').value = savedUrl;
+    $id('btn-save').disabled = false;
+  }
+});
+
+async function testConnection() {
+  const url = $id('api-url').value.trim();
+  if (!url) {
+    showStatus('กรุณาใส่ URL ก่อน', 'error');
+    return;
+  }
+  if (!url.startsWith('https://script.google.com/macros/s/')) {
+    showStatus('URL ไม่ถูกต้อง — ต้องเริ่มต้นด้วย https://script.google.com/macros/s/', 'error');
+    return;
+  }
+
+  showStatus('⏳ กำลังทดสอบการเชื่อมต่อ...', 'testing');
+  $id('btn-test').disabled = true;
+
+  const res = await API.ping(url);
+
+  $id('btn-test').disabled = false;
+
+  if (res.ok) {
+    showStatus('✅ เชื่อมต่อสำเร็จ! Apps Script พร้อมใช้งาน', 'success');
+    $id('btn-save').disabled = false;
+    // Save URL temporarily
+    lsSet(APP_CONFIG.STORAGE_KEYS.API_URL, url);
+    showEl('init-section');
+  } else {
+    showStatus(`❌ ${res.message || 'เชื่อมต่อไม่ได้'}`, 'error');
+    $id('btn-save').disabled = true;
+  }
+}
+
+function showStatus(msg, type) {
+  const el = $id('url-status');
+  el.textContent = msg;
+  el.className = `url-status ${type}`;
+}
+
+function saveSetup() {
+  const url = $id('api-url').value.trim();
+  if (!url) return;
+  lsSet(APP_CONFIG.STORAGE_KEYS.API_URL, url);
+  showToast('บันทึก URL สำเร็จ', 'success');
+  setTimeout(() => { window.location.href = 'login.html'; }, 1000);
+}
+
+async function runInit() {
+  const url = $id('api-url').value.trim();
+  if (!url) return;
+
+  showLoading('กำลัง Setup...');
+  const res = await API.setupInit(url);
+  hideLoading();
+
+  const resultEl = $id('init-result');
+  showEl('init-result');
+
+  if (res.ok) {
+    resultEl.innerHTML = `
+      <div class="alert alert-success">
+        <span class="alert-icon">✅</span>
+        <div class="alert-content">
+          <div class="alert-title">Setup สำเร็จ!</div>
+          <div class="alert-text">
+            ${res.data?.admin_username ? `Username: <strong>${escapeHtml(res.data.admin_username)}</strong>` : ''}
+            ${res.data?.admin_password ? `<br>Password เริ่มต้น: <strong>${escapeHtml(res.data.admin_password)}</strong>` : ''}
+            <br><span style="color:var(--status-absent);font-weight:700">⚠️ เปลี่ยนรหัสผ่านทันทีหลังเข้าสู่ระบบ</span>
+          </div>
+        </div>
+      </div>`;
+    showToast('Setup สำเร็จ! บันทึก URL แล้ว', 'success');
+    lsSet(APP_CONFIG.STORAGE_KEYS.API_URL, url);
+  } else {
+    resultEl.innerHTML = `
+      <div class="alert alert-error">
+        <span class="alert-icon">❌</span>
+        <div class="alert-content">
+          <div class="alert-title">Setup ล้มเหลว</div>
+          <div class="alert-text">${escapeHtml(res.message || 'เกิดข้อผิดพลาด')}</div>
+        </div>
+      </div>`;
+  }
+}
+</script>
+</body>
+</html>
