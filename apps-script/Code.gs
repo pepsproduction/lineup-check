@@ -150,13 +150,24 @@ function err(errorCode, message) {
 // SPREADSHEET HELPERS
 // ============================================================
 
+function getSpreadsheetId(idOrUrl) {
+  if (!idOrUrl) return '';
+  if (idOrUrl.indexOf('docs.google.com/spreadsheets') !== -1) {
+    const matches = idOrUrl.match(/\/d\/([a-zA-Z0-9-_]+)/);
+    if (matches && matches[1]) {
+      return matches[1];
+    }
+  }
+  return idOrUrl.trim();
+}
+
 function getSheet(name) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.openById(getSpreadsheetId(SPREADSHEET_ID));
   return ss.getSheetByName(name);
 }
 
 function getOrCreateSheet(name, headers) {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const ss = SpreadsheetApp.openById(getSpreadsheetId(SPREADSHEET_ID));
   let sheet = ss.getSheetByName(name);
   if (!sheet) {
     sheet = ss.insertSheet(name);
