@@ -209,6 +209,24 @@
         <span class="action-icon">⚙️</span>
         <span>ตั้งค่า</span>
       </a>
+      <a href="#" target="_blank" class="quick-action-btn hidden" id="btn-spreadsheet">
+        <span class="action-icon">📂</span>
+        <span>Google Sheets</span>
+      </a>
+    </div>
+
+    <!-- Mobile Connection Sharing Card -->
+    <div class="section-header">
+      <h2 class="section-title">📲 เชื่อมต่อมือถือ (Mobile Connection)</h2>
+    </div>
+    <div class="card mb-md text-center" style="display:flex; flex-direction:column; align-items:center; padding: 20px;">
+      <div style="font-size: 14px; color: var(--text-secondary); margin-bottom: 12px; max-width: 320px;">
+        ให้ครูหรือผู้ช่วยท่านอื่นนำกล้องมือถือมาสแกนคิวอาร์โค้ดนี้ เพื่อเข้าใช้งานโดยไม่ต้องกรอก URL เอง
+      </div>
+      <div id="dash-qr-container" style="display:flex; justify-content:center; align-items:center; min-height: 150px; margin-bottom: 12px; width: 100%;">
+        <div class="spinner spinner-sm"></div>
+      </div>
+      <button class="btn btn-ghost btn-sm" onclick="copyDashConnectionLink()">📋 คัดลอกลิงก์แชร์การเชื่อมต่อ</button>
     </div>
 
     <!-- Offline Queue Notice -->
@@ -274,16 +292,34 @@ document.addEventListener('DOMContentLoaded', async () => {
   const schoolName = lsGet(APP_CONFIG.STORAGE_KEYS.SCHOOL_NAME, 'โรงเรียน');
   $id('school-display').textContent = schoolName;
 
-  // Hide settings for non-admin
-  if (!Auth.canManageSystem(_dashUser)) {
-    // Still show settings but limited
-  }
+  // Render QR Code for Mobile Connection
+  renderDashMobileQr();
 
   // Load classes
   await loadDashClasses();
 
   // Check offline queue
   checkOfflineQueue();
+
+  // Fetch settings asynchronously to update school name and spreadsheet link
+  API.getSettings().then(res => {
+    if (res.ok && res.data) {
+      const s = res.data;
+      if (s.school_name) {
+        $id('school-display').textContent = s.school_name;
+        lsSet(APP_CONFIG.STORAGE_KEYS.SCHOOL_NAME, s.school_name);
+      }
+      if (s.spreadsheet_url) {
+        const btnSheet = $id('btn-spreadsheet');
+        if (btnSheet) {
+          btnSheet.href = s.spreadsheet_url;
+          btnSheet.classList.remove('hidden');
+        }
+      }
+    }
+  }).catch(err => {
+    console.error('Failed to load settings:', err);
+  });
 });
 
 async function loadDashClasses() {
@@ -332,6 +368,34 @@ function checkOfflineQueue() {
     $id('offline-count').textContent = queue.length;
     showEl('offline-notice');
   }
+}
+
+function renderDashMobileQr() {
+  const container = $id('dash-qr-container');
+  if (!container) return;
+
+  const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '') || APP_CONFIG.DEFAULT_API_URL;
+  if (!apiUrl) {
+    container.innerHTML = '<div style="color:var(--status-absent); font-weight:600;">ยังไม่ได้ตั้งค่า API URL</div>';
+    return;
+  }
+
+  const base = window.location.origin + window.location.pathname.replace('dashboard.html', 'login.html');
+  const connectUrl = `${base}?api_url=${encodeURIComponent(apiUrl)}`;
+  
+  container.innerHTML = `<img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(connectUrl)}" alt="Mobile Connect QR" style="border: 4px solid white; border-radius: 8px; box-shadow: var(--shadow); max-width: 150px;">`;
+}
+
+function copyDashConnectionLink() {
+  const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '') || APP_CONFIG.DEFAULT_API_URL;
+  if (!apiUrl) {
+    showToast('ยังไม่ได้ตั้งค่า API URL', 'error');
+    return;
+  }
+  const base = window.location.origin + window.location.pathname.replace('dashboard.html', 'login.html');
+  const connectUrl = `${base}?api_url=${encodeURIComponent(apiUrl)}`;
+  navigator.clipboard.writeText(connectUrl);
+  showToast('คัดลอกลิงก์เชื่อมต่อแล้ว', 'success');
 }
 </script>
 </body>

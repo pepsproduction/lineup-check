@@ -206,14 +206,16 @@ document.addEventListener('DOMContentLoaded', () => {
     history.replaceState(null, '', location.pathname);
   }
 
+  const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '') || APP_CONFIG.DEFAULT_API_URL;
+
   // Already logged in?
-  if (Auth.isLoggedIn() && lsGet(APP_CONFIG.STORAGE_KEYS.API_URL)) {
+  if (Auth.isLoggedIn() && apiUrl) {
     window.location.href = 'dashboard.html';
     return;
   }
 
   // No API URL?
-  if (!lsGet(APP_CONFIG.STORAGE_KEYS.API_URL)) {
+  if (!apiUrl) {
     showEl('no-url-alert');
   } else {
     hideEl('no-url-alert');

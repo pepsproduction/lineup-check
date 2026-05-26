@@ -136,12 +136,16 @@
 <script src="assets/js/config.js"></script>
 <script src="assets/js/utils.js"></script>
 <script>
-  // Auto-redirect if already logged in
+  // Auto-redirect if API URL is configured
   document.addEventListener('DOMContentLoaded', () => {
     const token = lsGet(APP_CONFIG.STORAGE_KEYS.SESSION_TOKEN);
-    const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL);
-    if (token && apiUrl) {
-      window.location.href = 'dashboard.html';
+    const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '') || APP_CONFIG.DEFAULT_API_URL;
+    if (apiUrl) {
+      if (token) {
+        window.location.href = 'dashboard.html';
+      } else {
+        window.location.href = 'login.html';
+      }
     }
   });
 </script>

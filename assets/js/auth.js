@@ -47,7 +47,7 @@ const Auth = (() => {
 
   async function requireLogin(allowedRoles = []) {
     // 1. Check if API URL is configured
-    const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '');
+    const apiUrl = lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '') || APP_CONFIG.DEFAULT_API_URL;
     if (!apiUrl) {
       window.location.href = 'setup.html';
       return null;

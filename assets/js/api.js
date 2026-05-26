@@ -13,7 +13,7 @@ const API = (() => {
   /* ---------- Internal Helpers ---------- */
 
   function _getApiUrl() {
-    return lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '');
+    return lsGet(APP_CONFIG.STORAGE_KEYS.API_URL, '') || APP_CONFIG.DEFAULT_API_URL || '';
   }
 
   function _getSessionToken() {

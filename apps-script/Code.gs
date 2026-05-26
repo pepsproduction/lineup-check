@@ -425,6 +425,10 @@ function handleGetSettings(user) {
   const rows = sheetToObjects(sheet);
   const settings = {};
   rows.forEach(r => { settings[r.key] = r.value; });
+  
+  // Inject spreadsheet URL for convenience
+  settings.spreadsheet_url = 'https://docs.google.com/spreadsheets/d/' + getSpreadsheetId(SPREADSHEET_ID) + '/edit';
+  
   return ok(settings);
 }
 
