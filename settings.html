@@ -353,7 +353,8 @@ async function testApiUrl() {
 
   const res = await API.ping(url);
   if (res.ok) {
-    resultEl.innerHTML = '<div class="alert alert-success"><span class="alert-icon">✅</span><div class="alert-content"><div class="alert-text">เชื่อมต่อสำเร็จ</div></div></div>';
+    const version = res.data?.version || '1.0.0';
+    resultEl.innerHTML = `<div class="alert alert-success"><span class="alert-icon">✅</span><div class="alert-content"><div class="alert-title">เชื่อมต่อสำเร็จ</div><div class="alert-text">เวอร์ชันเซิร์ฟเวอร์ (API Version): v${escapeHtml(version)}</div></div></div>`;
   } else {
     resultEl.innerHTML = `<div class="alert alert-error"><span class="alert-icon">❌</span><div class="alert-content"><div class="alert-text">${escapeHtml(res.message)}</div></div></div>`;
   }

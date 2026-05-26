@@ -216,7 +216,8 @@ async function testConnection() {
   $id('btn-test').disabled = false;
 
   if (res.ok) {
-    showStatus('✅ เชื่อมต่อสำเร็จ! Apps Script พร้อมใช้งาน', 'success');
+    const version = res.data?.version || '1.0.0';
+    showStatus(`✅ เชื่อมต่อสำเร็จ! Apps Script พร้อมใช้งาน (เวอร์ชัน: v${version})`, 'success');
     $id('btn-save').disabled = false;
     // Save URL temporarily
     lsSet(APP_CONFIG.STORAGE_KEYS.API_URL, url);

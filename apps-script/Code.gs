@@ -256,7 +256,7 @@ function verifyPassword(password, hash, salt) {
 // ============================================================
 
 function handlePing() {
-  return ok({ version: '1.0.0', time: new Date().toISOString() }, 'pong');
+  return ok({ version: '1.1.0', time: new Date().toISOString() }, 'pong');
 }
 
 function handleSetupInit() {
