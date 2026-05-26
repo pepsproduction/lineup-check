@@ -1,0 +1,38 @@
+# LineUp Check — .gitignore
+
+# ไม่ต้องอัพไฟล์เหล่านี้
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (ถ้าใช้)
+node_modules/
+npm-debug.log*
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*.bak
+
+# ไม่ต้องอัพ apps-script ขึ้น GitHub Pages
+# (เก็บไว้ใน repo ได้ เพราะไม่มี secret จริงๆ)
+# apps-script/  <-- comment ออก เพราะอยากให้เห็น Code.gs ใน repo
+
+# อย่าเก็บ env files ถ้ามี
+.env
+.env.local
+.env.production
