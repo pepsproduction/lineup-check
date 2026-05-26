@@ -162,7 +162,7 @@
   </div>
 
   <!-- Step 5: Initial Setup -->
-  <div class="step-card" id="init-section" style="display:none">
+  <div class="step-card" id="init-section">
     <div class="step-header">
       <div class="step-number">5</div>
       <div class="step-title">สร้างข้อมูลเริ่มต้น</div>
@@ -244,7 +244,10 @@ function saveSetup() {
 
 async function runInit() {
   const url = $id('api-url').value.trim();
-  if (!url) return;
+  if (!url) {
+    showToast('กรุณากรอก Web App URL ในขั้นตอนที่ 4 ก่อนทำรายการ', 'warning');
+    return;
+  }
 
   showLoading('กำลัง Setup...');
   const res = await API.setupInit(url);
