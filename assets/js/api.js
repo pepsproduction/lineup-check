@@ -28,32 +28,44 @@ const API = (() => {
    */
   /* ---------- Cache Manager ---------- */
   const Cache = (() => {
-    let _store = {};
+    const CACHE_PREFIX = 'lineup_api_cache_';
 
     return {
       get(key) {
-        const item = _store[key];
-        if (!item) return null;
-        if (Date.now() > item.expiry) {
-          delete _store[key];
+        try {
+          const raw = sessionStorage.getItem(CACHE_PREFIX + key);
+          if (!raw) return null;
+          const item = JSON.parse(raw);
+          if (Date.now() > item.expiry) {
+            sessionStorage.removeItem(CACHE_PREFIX + key);
+            return null;
+          }
+          return item.data;
+        } catch {
           return null;
         }
-        return item.data;
       },
-      set(key, data, ttlMs = 120000) { // TTL: 2 minutes for faster subsequent loads
-        _store[key] = {
-          data,
-          expiry: Date.now() + ttlMs
-        };
+      set(key, data, ttlMs = 300000) { // TTL: 5 minutes (persists during page switches)
+        try {
+          const item = {
+            data,
+            expiry: Date.now() + ttlMs
+          };
+          sessionStorage.setItem(CACHE_PREFIX + key, JSON.stringify(item));
+        } catch {}
       },
       clear(prefix) {
-        if (!prefix) {
-          _store = {};
-        } else {
-          Object.keys(_store).forEach(k => {
-            if (k.startsWith(prefix)) delete _store[k];
-          });
-        }
+        try {
+          if (!prefix) {
+            Object.keys(sessionStorage).forEach(k => {
+              if (k.startsWith(CACHE_PREFIX)) sessionStorage.removeItem(k);
+            });
+          } else {
+            Object.keys(sessionStorage).forEach(k => {
+              if (k.startsWith(CACHE_PREFIX + prefix)) sessionStorage.removeItem(k);
+            });
+          }
+        } catch {}
       }
     };
   })();

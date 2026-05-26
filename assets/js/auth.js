@@ -60,37 +60,32 @@ const Auth = (() => {
       return null;
     }
 
-    // 3. Use cached user info first (fast path)
+    // 3. Use cached user info (fast path)
     let user = getCachedUser();
-
-    // 4. Optionally verify with server (do once per page load)
-    try {
-      const res = await API.me();
-      if (res.ok && res.data) {
-        user = res.data;
-        lsSet(APP_CONFIG.STORAGE_KEYS.USER_INFO, user);
-        _currentUser = user;
-      } else if (res.error === 'SESSION_EXPIRED' || res.error === 'INVALID_SESSION') {
-        clearSession();
-        window.location.href = 'login.html?reason=expired';
-        return null;
-      }
-      // If network error, fall back to cached user
-    } catch {
-      // Network unavailable — use cached user
-    }
-
     if (!user) {
       window.location.href = 'login.html';
       return null;
     }
 
-    // 5. Check role permission
+    // 4. Check role permission on cached user
     if (allowedRoles.length > 0 && !allowedRoles.includes(user.role)) {
       showToast('คุณไม่มีสิทธิ์เข้าถึงหน้านี้', 'error');
       window.location.href = 'dashboard.html';
       return null;
     }
+
+    // 5. Verify session with server in the background (non-blocking)
+    API.me().then(res => {
+      if (res.ok && res.data) {
+        lsSet(APP_CONFIG.STORAGE_KEYS.USER_INFO, res.data);
+        _currentUser = res.data;
+      } else if (res.error === 'SESSION_EXPIRED' || res.error === 'INVALID_SESSION') {
+        clearSession();
+        window.location.href = 'login.html?reason=expired';
+      }
+    }).catch(() => {
+      // Ignore background network errors
+    });
 
     return user;
   }
